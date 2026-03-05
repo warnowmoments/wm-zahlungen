@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zahlungseingänge - Warnow Moments Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: #f3f4f6; padding: 0; margin: 0; color: #111827; }
+    
+    #loginGate { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1D334A 0%, #111827 100%); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+    .login-box { background: white; padding: 2.5rem; border-radius: 1rem; width: 100%; max-width: 400px; text-align: center; }
+    .login-box input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #d1d5db; border-radius: 0.5rem; }
+    .login-btn { width: 100%; padding: 0.75rem; background: #ea580c; color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+
+    #appContent { display: none; padding: 1.5rem; }
+    .container { max-width: 1300px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
+    header { padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { margin: 0; font-size: 1.75rem; }
+    .logout-btn { padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: bold;}
+
+    .tab-bar { display: flex; gap: 1rem; padding: 0 2rem; border-bottom: 2px solid #e5e7eb; background: #f9fafb; }
+    .tab-btn { padding: 1rem 1.5rem; background: none; border: none; font-size: 1.05rem; font-weight: 700; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+    .tab-btn:hover { color: #111827; }
+    .tab-btn.active { color: #ea580c; border-bottom-color: #ea580c; }
+
+    .summary-card { background: #eff6ff; border-bottom: 1px solid #bfdbfe; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .summary-card h2 { margin: 0; color: #1e3a8a; font-size: 1.2rem; }
+    .summary-card .amount { font-size: 1.5rem; font-weight: 800; color: #dc2626; }
+
+    .quickbar { background: #fef3c7; padding: 1.25rem 2rem; border-bottom: 1px solid #fed7aa; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.9rem; }
+    .quickbar input, .quickbar select { padding: 0.6rem; border-radius: 0.5rem; border: 1px solid #d1d5db; font-size: 0.9rem; }
+    .add-btn { padding: 0.6rem 1.2rem; background: #10b981; color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+
+    .table-wrapper { padding: 1.5rem 2rem; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 950px; }
+    thead tr { background: #111827; color: white; }
+    th, td { padding: 0.85rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.95rem; }
+    tbody tr:hover { background: #f9fafb; }
+    
+    .status-pill { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; }
+    .status-offen { background: #fee2e2; color: #991b1b; }
+    .status-teilbezahlt { background: #dbeafe; color: #1e40af; }
+    .status-abgeschlossen { background: #dcfce7; color: #166534; }
+
+    .action-btn { padding: 0.4rem 0.75rem; border: none; border-radius: 0.4rem; color: white; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin-right: 0.25rem; }
+    .btn-pay { background: #3b82f6; }
+    .btn-edit { background: #6b7280; }
+    
+    #editModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: white; padding: 2rem; border-radius: 1rem; width: 450px; max-height: 90vh; overflow-y: auto;}
+    .modal-content input, .modal-content select { width: 100%; padding: 0.6rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 0.4rem; }
+    .modal-actions { display: flex; justify-content: space-between; margin-top: 1.5rem; align-items: center; }
+    .btn-save { background: #10b981; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer;}
+    .btn-cancel { background: #9ca3af; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer;}
+    .btn-delete { background: #ef4444; color: white; padding: 0.4rem 0.8rem; border: none; border-radius: 0.4rem; font-size: 0.85rem; cursor: pointer;}
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div id="loginGate">
+    <div class="login-box">
+      <h2>🔒 Team Login</h2>
+      <p style="color:#6b7280; font-size:0.9rem;">Warnow Moments Zahlungen</p>
+      <input type="email" id="loginEmail" placeholder="Team E-Mail" required>
+      <input type="password" id="loginPassword" placeholder="Passwort" required>
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAAA26R2Z_eR1iY46W" style="margin: 1rem auto; display: flex; justify-content: center;"></div>
+      <button class="login-btn" onclick="handleLogin()">Einloggen</button>
+      <p id="loginError" style="color: red; font-size: 0.85rem; margin-top: 1rem;"></p>
+    </div>
+  </div>
+
+  <div id="appContent">
+    <div class="container">
+      <header>
+        <h1>💰 Zahlungseingänge & Fristen</h1>
+        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+      </header>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tabOffen" onclick="switchTab('offen')">📂 Offene Posten</button>
+        <button class="tab-btn" id="tabArchiv" onclick="switchTab('archiv')">✅ Archiv (Erledigt)</button>
+      </div>
+
+      <div class="summary-card" id="summaryCard" style="display:none;">
+        <h2 id="summaryText">Gesamtsumme noch offen:</h2>
+        <div class="amount" id="totalOpenAmount">0,00 €</div>
+      </div>
+
+      <div class="quickbar" id="quickbar">
+        <strong>Neuer Eintrag:</strong>
+        <input id="newKunde" placeholder="Kunde/Firma" style="width: 150px;">
+        <input id="newRef" placeholder="Ref-Nr. (RE-001)" style="width: 130px;">
+        <select id="newType">
+          <option value="rechnung">Rechnung</option>
+          <option value="buchung">Buchung</option>
+          <option value="ausgabe">Ausgabe</option>
+        </select>
+        <select id="newSteuer">
+          <option value="19">19% MwSt</option>
+          <option value="7">7% MwSt</option>
+          <option value="0">Ohne MwSt</option>
+        </select>
+        <label for="newDate" style="color:#92400e; font-weight:600;">Fällig am:</label>
+        <input id="newDate" type="date">
+        <input id="newBetrag" type="number" step="0.01" placeholder="Brutto €" style="width: 100px;">
+        <button class="add-btn" onclick="addPayment()">Hinzufügen</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Kunde</th>
+              <th>Referenz</th>
+              <th>Typ</th>
+              <th>Fällig am</th>
+              <th>Gesamt</th>
+              <th>Anzahlung</th>
+              <th>Bezahlt</th>
+              <th>Offen</th>
+              <th>Status</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="10" style="text-align:center;">Lade Daten...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ERWEITERTES EDIT MODAL -->
+  <div id="editModal">
+    <div class="modal-content">
+      <h3 style="margin-top:0;">Eintrag bearbeiten</h3>
+      <input type="hidden" id="editId">
+      <input type="hidden" id="editOriginalType">
+      
+      <label>Kunde / Firma</label>
+      <input type="text" id="editKunde">
+      
+      <label>Referenz (Rechnungs-Nr)</label>
+      <input type="text" id="editRef">
+
+      <div style="background:#fffbeb; padding:10px; border-radius:8px; margin-bottom:1rem; border:1px solid #fde68a;">
+        <label style="color:#92400e; font-weight:bold;">Brutto-Gesamtbetrag (Forderung in €)</label>
+        <input type="number" step="0.01" id="editGesamt" style="margin-bottom:0.5rem;">
+        
+        <label style="color:#92400e; font-size:0.85rem;">Steuersatz (nur für manuelle Rechnungen/Ausgaben wichtig)</label>
+        <select id="editSteuer" style="margin-bottom:0;">
+          <option value="19">19% MwSt</option>
+          <option value="7">7% MwSt</option>
+          <option value="0">Ohne MwSt</option>
+        </select>
+      </div>
+      
+      <div style="background:#f9fafb; padding:10px; border-radius:8px; margin-bottom:1rem; border:1px solid #e5e7eb;">
+        <label style="color:#111827; font-size:0.85rem; font-weight:bold;">Bereits gezahlte Anzahlung (€)</label>
+        <input type="number" step="0.01" id="editAnzGezahlt" style="margin-bottom:0.5rem;">
+        
+        <label style="color:#111827; font-size:0.85rem; font-weight:bold;">Bereits gezahlter Rest (€)</label>
+        <input type="number" step="0.01" id="editRestGezahlt" style="margin-bottom:0;">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-delete" onclick="deletePayment()" title="Eintrag komplett löschen">🗑️ Löschen</button>
+        <div>
+          <button class="btn-cancel" onclick="closeEditModal()">Abbrechen</button>
+          <button class="btn-save" onclick="saveEdit()">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://fnktiyujyznbbhwkeyww.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_cJyOwgz2NXfDiTj7mRUVrQ_VMAMoVdd';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentTab = 'offen'; 
+    let allPayments = []; 
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabOffen').classList.toggle('active', tab === 'offen');
+      document.getElementById('tabArchiv').classList.toggle('active', tab === 'archiv');
+      document.getElementById('quickbar').style.display = (tab === 'archiv') ? 'none' : 'flex';
+      renderTable(); 
+    }
+
+    async function checkSession() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        document.getElementById('loginGate').classList.add('hidden');
+        document.getElementById('appContent').style.display = 'block';
+        loadData();
+      }
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('loginEmail').value;
+      const pass = document.getElementById('loginPassword').value;
+      const err = document.getElementById('loginError');
+      err.textContent = "Prüfe Login...";
+      const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+      if (error) err.textContent = "Fehler: " + error.message; 
+      else checkSession();
+    }
+
+    async function handleLogout() {
+      await sb.auth.signOut();
+      location.reload();
+    }
+
+    async function loadData() {
+      try {
+        const { data, error } = await sb
+          .from('payments')
+          .select('*')
+          .order('deposit_due', { ascending: true, nullsFirst: false }); 
+
+        if (error) throw error;
+        allPayments = data || [];
+        renderTable();
+      } catch (err) { alert("Fehler beim Laden: " + err.message); }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      let sumOffen = 0;
+      let countAnsicht = 0;
+
+      allPayments.forEach(row => {
+        let total = Number(row.total_amount || 0);
+        const t19 = Number(row.total_amount_19 || 0);
+        const t7 = Number(row.total_amount_7 || 0);
+        if ((t19 + t7) > total) total = t19 + t7; 
+        
+        const anzForderung = Number(row.deposit_amount || 0);
+        const anzBezahlt = Number(row.deposit_paid || 0);
+        const endForderung = Number(row.final_amount) > 0 ? Number(row.final_amount) : (total - anzForderung);
+        const endBezahlt = Number(row.final_paid || 0);
+        
+        const bezahltGesamt = anzBezahlt + endBezahlt;
+        let offenGesamt = total - bezahltGesamt;
+        if (offenGesamt < 0) offenGesamt = 0;
+
+        const isErledigt = (offenGesamt <= 0 || row.status === 'abgeschlossen');
+        if (currentTab === 'offen' && isErledigt) return; 
+        if (currentTab === 'archiv' && !isErledigt) return; 
+        
+        countAnsicht++;
+        if (offenGesamt > 0 && row.cash_flow_direction !== 'out') sumOffen += offenGesamt;
+
+        const anzFällig = row.deposit_due ? new Date(row.deposit_due).toLocaleDateString('de-DE') : '-';
+        const endFällig = row.final_due ? new Date(row.final_due).toLocaleDateString('de-DE') : '-';
+        const farbe = row.cash_flow_direction === 'out' ? 'color: #991b1b;' : '';
+
+        let anzAnzeige = '-';
+        if (row.transaction_type === 'buchung' && anzForderung > 0) {
+            anzAnzeige = `${anzForderung.toFixed(2)} €`;
+        }
+
+        let offenStyle = "color:red; font-weight:bold; background:#fee2e2; border-radius:4px; text-align:center;";
+        if (offenGesamt <= 0) {
+            offenStyle = "color:#10b981; font-weight:bold; text-align:center;"; 
+        }
+
+        // Steuersatz für Edit ermitteln
+        let rowSteuer = "19";
+        if (t7 > 0 && t19 === 0) rowSteuer = "7";
+        if (t7 === 0 && t19 === 0 && row.transaction_type !== 'buchung') rowSteuer = "0";
+
+        // ACTION BUTTONS
+        let actionBtns = `<button class="action-btn btn-edit" onclick="openEditModal('${row.id}', '${row.customer_name}', '${row.invoice_number}', ${total}, ${anzBezahlt}, ${endBezahlt}, '${row.transaction_type}', '${rowSteuer}')">✏️ Edit</button>`;
+        let faelligAnzeige = `<b>${anzFällig}</b>`;
+
+        if (currentTab === 'offen') {
+            if (row.transaction_type === 'buchung') {
+                faelligAnzeige = `Anz: <b>${anzFällig}</b><br><small style="color:#6b7280;">Rest: ${endFällig}</small>`;
+                const anzOffen = anzForderung - anzBezahlt;
+                const endOffen = endForderung - endBezahlt;
+                
+                if (anzOffen > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${anzOffen}, ${anzBezahlt}, 'Anzahlung')">💰 Anz. (${anzOffen.toFixed(2)}€)</button>`;
+                if (endOffen > 0) actionBtns += `<button class="action-btn btn-pay" style="background:#10b981; margin-top:2px;" onclick="payPartial('${row.id}', 'final_paid', ${endOffen}, ${endBezahlt}, 'Restbetrag')">💰 Rest (${endOffen.toFixed(2)}€)</button>`;
+            } else {
+                if (offenGesamt > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${offenGesamt}, ${anzBezahlt}, 'Rechnung')">💰 Voll/Teil (${offenGesamt.toFixed(2)}€)</button>`;
+            }
+        } else {
+            if (row.transaction_type === 'buchung') faelligAnzeige = `Anz: <b>${anzFällig}</b><br><small style="color:#6b7280;">Rest: ${endFällig}</small>`;
+        }
+
+        tbody.innerHTML += `
+          <tr style="${farbe}">
+            <td><strong>${row.customer_name || '-'}</strong></td>
+            <td><code>${row.invoice_number || '-'}</code></td>
+            <td><span style="font-size:0.8rem; background:#f3f4f6; padding:2px 6px; border-radius:4px;">${row.transaction_type}</span></td>
+            <td>${faelligAnzeige}</td>
+            <td style="font-weight:bold;">${total.toFixed(2)} €</td>
+            <td style="color:#6b7280;">${anzAnzeige}</td>
+            <td style="color:#10b981;">${bezahltGesamt.toFixed(2)} €</td>
+            <td style="${offenStyle}">${offenGesamt.toFixed(2)} €</td>
+            <td><span class="status-pill ${getStatusClass(row.status)}">${(row.status || 'offen').toUpperCase()}</span></td>
+            <td style="display:flex; flex-direction:column; gap:4px;">${actionBtns}</td>
+          </tr>
+        `;
+      });
+
+      if (countAnsicht === 0) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:#6b7280;">Keine Einträge in dieser Ansicht.</td></tr>`;
+
+      if (currentTab === 'offen') {
+          document.getElementById('summaryText').textContent = 'Gesamtsumme noch offen (Einnahmen):';
+          document.getElementById('totalOpenAmount').textContent = sumOffen.toFixed(2).replace('.', ',') + ' €';
+          document.getElementById('totalOpenAmount').style.color = '#dc2626';
+          document.getElementById('summaryCard').style.display = 'flex';
+      } else {
+          document.getElementById('summaryCard').style.display = 'none'; 
+      }
+    }
+
+    function getStatusClass(status) {
+      if(status === 'abgeschlossen') return 'status-abgeschlossen';
+      if(status === 'teilbezahlt') return 'status-teilbezahlt';
+      return 'status-offen';
+    }
+
+    async function payPartial(id, dbField, offenerBetrag, bisherGezahlt, title) {
+      let input = prompt(`Forderung: ${title}\nNoch offen: ${offenerBetrag.toFixed(2)} €\n\nWie viel € hat der Kunde JETZT überwiesen?`, offenerBetrag.toFixed(2));
+      if (input === null || input.trim() === '') return; 
+      
+      let gezahltNeu = parseFloat(input.replace(',', '.'));
+      if (isNaN(gezahltNeu) || gezahltNeu <= 0) { alert("Bitte eine gültige Zahl eingeben."); return; }
+
+      const totalBezahltFürDiesenPosten = bisherGezahlt + gezahltNeu;
+      const newStatus = (gezahltNeu >= offenerBetrag) ? (dbField === 'final_paid' || title === 'Rechnung' ? 'abgeschlossen' : 'teilbezahlt') : 'teilbezahlt';
+
+      try {
+        const { error } = await sb.from('payments').update({ [dbField]: totalBezahltFürDiesenPosten, status: newStatus }).eq('id', id);
+        if(error) throw error;
+        loadData(); 
+      } catch(err) { alert("Fehler beim Speichern: " + err.message); }
+    }
+
+    async function addPayment() {
+      const kunde = document.getElementById('newKunde').value.trim();
+      const ref = document.getElementById('newRef').value.trim();
+      const typ = document.getElementById('newType').value;
+      const steuer = document.getElementById('newSteuer').value;
+      const dateVal = document.getElementById('newDate').value;
+      const betrag = parseFloat(document.getElementById('newBetrag').value);
+
+      if(!kunde || !ref || isNaN(betrag)) { alert("Bitte Kunde, Referenz und Betrag ausfüllen."); return; }
+
+      let net = betrag, tax19 = 0, tax7 = 0, tot19 = 0, tot7 = 0;
+      if (steuer === '19') { net = betrag / 1.19; tax19 = betrag - net; tot19 = betrag; } 
+      else if (steuer === '7') { net = betrag / 1.07; tax7 = betrag - net; tot7 = betrag; }
+
+      const fälligDatum = dateVal ? dateVal : new Date().toISOString().split('T')[0];
+      const dir = (typ === 'ausgabe') ? 'out' : 'in';
+
+      try {
+        const { error } = await sb.from('payments').insert([{
+          customer_name: kunde, invoice_number: ref, transaction_type: typ,
+          total_amount: betrag, deposit_amount: betrag, deposit_paid: 0,
+          final_amount: 0, final_paid: 0,
+          total_amount_19: tot19, total_amount_7: tot7,
+          tax_amount_19: tax19, tax_amount_7: tax7, net_amount: net,
+          status: 'offen', cash_flow_direction: dir, deposit_due: fälligDatum
+        }]);
+
+        if (error) throw error;
+        
+        document.getElementById('newKunde').value = ''; document.getElementById('newRef').value = '';
+        document.getElementById('newBetrag').value = ''; document.getElementById('newDate').value = '';
+        loadData();
+      } catch(err) { alert("Insert Fehler: " + err.message); }
+    }
+
+    // MODAL OPEN
+    function openEditModal(id, kunde, ref, gesamt, anzBezahlt, endBezahlt, typ, steuer) {
+      document.getElementById('editId').value = id;
+      document.getElementById('editOriginalType').value = typ;
+      document.getElementById('editGesamt').value = gesamt; 
+      document.getElementById('editKunde').value = kunde;
+      document.getElementById('editRef').value = (ref === 'null' || ref === 'undefined') ? '' : ref;
+      document.getElementById('editAnzGezahlt').value = anzBezahlt;
+      document.getElementById('editRestGezahlt').value = endBezahlt;
+      
+      // Steuer-Dropdown nur aktivieren, wenn es keine Buchung ist
+      const steuerSelect = document.getElementById('editSteuer');
+      if (typ === 'buchung') {
+          steuerSelect.disabled = true;
+          steuerSelect.title = "Steuern bei Buchungen werden automatisch berechnet.";
+      } else {
+          steuerSelect.disabled = false;
+          steuerSelect.value = steuer;
+      }
+      
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    // DELETE EINER RECHNUNG
+    async function deletePayment() {
+      const id = document.getElementById('editId').value;
+      const ref = document.getElementById('editRef').value;
+      const confirmDelete = confirm(`Bist du sicher, dass du den Eintrag "${ref}" komplett löschen möchtest?\n\nDies kann nicht rückgängig gemacht werden.`);
+      
+      if (!confirmDelete) return;
+
+      try {
+        const { error } = await sb.from('payments').delete().eq('id', id);
+        if(error) throw error;
+        closeEditModal();
+        loadData();
+      } catch(err) { alert("Fehler beim Löschen: " + err.message); }
+    }
+
+    // SPEICHERN MIT NEUEN BETRÄGEN
+    async function saveEdit() {
+      const id = document.getElementById('editId').value;
+      const typ = document.getElementById('editOriginalType').value;
+      const total = parseFloat(document.getElementById('editGesamt').value) || 0;
+      const kunde = document.getElementById('editKunde').value;
+      const ref = document.getElementById('editRef').value;
+      const anzGezahlt = parseFloat(document.getElementById('editAnzGezahlt').value) || 0;
+      const endGezahlt = parseFloat(document.getElementById('editRestGezahlt').value) || 0;
+      const steuer = document.getElementById('editSteuer').value;
+
+      let neuerStatus = 'offen';
+      if ((anzGezahlt + endGezahlt) >= total && total > 0) neuerStatus = 'abgeschlossen';
+      else if ((anzGezahlt + endGezahlt) > 0) neuerStatus = 'teilbezahlt';
+
+      // Wenn es eine normale Rechnung/Ausgabe ist, berechnen wir die Steuern auf den neuen Betrag
+      let updateData = {
+          customer_name: kunde, invoice_number: ref,
+          total_amount: total,
+          deposit_paid: anzGezahlt, final_paid: endGezahlt, status: neuerStatus
+      };
+
+      if (typ !== 'buchung') {
+          updateData.deposit_amount = total; // Anz-Forderung gleich Gesamt
+          let net = total, tax19 = 0, tax7 = 0, tot19 = 0, tot7 = 0;
+          if (steuer === '19') { net = total / 1.19; tax19 = total - net; tot19 = total; } 
+          else if (steuer === '7') { net = total / 1.07; tax7 = total - net; tot7 = total; }
+          
+          updateData.total_amount_19 = tot19; updateData.total_amount_7 = tot7;
+          updateData.tax_amount_19 = tax19; updateData.tax_amount_7 = tax7;
+          updateData.net_amount = net;
+      }
+
+      try {
+        const { error } = await sb.from('payments').update(updateData).eq('id', id);
+        if(error) throw error;
+        closeEditModal();
+        loadData();
+      } catch(err) { alert("Fehler: " + err.message); }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => { checkSession(); });
+  </script>
+</body>
+</html>
