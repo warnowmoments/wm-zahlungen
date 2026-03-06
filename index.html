@@ -16,7 +16,7 @@
     .login-btn { width: 100%; padding: 0.75rem; background: #ea580c; color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
 
     #appContent { display: none; padding: 1.5rem; }
-    .container { max-width: 1300px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
+    .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
     header { padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
     header h1 { margin: 0; font-size: 1.75rem; }
     .logout-btn { padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: bold;}
@@ -30,23 +30,39 @@
     .summary-card h2 { margin: 0; color: #1e3a8a; font-size: 1.2rem; }
     .summary-card .amount { font-size: 1.5rem; font-weight: 800; color: #dc2626; }
 
-    .quickbar { background: #fef3c7; padding: 1.25rem 2rem; border-bottom: 1px solid #fed7aa; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.9rem; }
-    .quickbar input, .quickbar select { padding: 0.6rem; border-radius: 0.5rem; border: 1px solid #d1d5db; font-size: 0.9rem; }
-    .add-btn { padding: 0.6rem 1.2rem; background: #10b981; color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+    .quickbar { background: #fef3c7; padding: 1rem 2rem; border-bottom: 1px solid #fed7aa; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-size: 0.85rem; }
+    .quickbar-title { font-weight: bold; color: #92400e; margin-right: 0.5rem; }
+    .quickbar input, .quickbar select { padding: 0.5rem; border-radius: 0.4rem; border: 1px solid #d1d5db; font-size: 0.85rem; }
+    .quickbar input:focus, .quickbar select:focus { outline: 2px solid #f59e0b; border-color: transparent; }
+    .add-btn { padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .add-btn:hover { background: #059669; }
 
+    /* VERBESSERTE TABELLE */
     .table-wrapper { padding: 1.5rem 2rem; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 950px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
     thead tr { background: #111827; color: white; }
-    th, td { padding: 0.85rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.95rem; }
+    th { padding: 1rem 0.85rem; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #d1d5db; border-bottom: 2px solid #374151; }
+    td { padding: 1rem 0.85rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; vertical-align: middle; }
     tbody tr:hover { background: #f9fafb; }
     
-    .status-pill { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; }
+    .col-kunde { min-width: 150px; font-weight: 600; }
+    .col-ref { min-width: 140px; font-family: monospace; font-size: 0.85rem; color: #4b5563; }
+    .col-zweck { min-width: 120px; color: #4b5563; }
+    
+    /* Verhindert Umbrüche beim Euro-Zeichen! */
+    .col-betrag, .col-bezahlt, .col-offen, .col-anzahlung { white-space: nowrap; }
+    
+    .empty-cell { color: #d1d5db; font-weight: normal; } 
+
+    .status-pill { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: bold; letter-spacing: 0.05em; }
     .status-offen { background: #fee2e2; color: #991b1b; }
     .status-teilbezahlt { background: #dbeafe; color: #1e40af; }
     .status-abgeschlossen { background: #dcfce7; color: #166534; }
 
-    .action-btn { padding: 0.4rem 0.75rem; border: none; border-radius: 0.4rem; color: white; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin-right: 0.25rem; }
+    .action-btn { padding: 0.4rem 0.75rem; border: none; border-radius: 0.4rem; color: white; font-size: 0.75rem; font-weight: bold; cursor: pointer; margin-bottom: 0.25rem; width: 100%; text-align: center; display: block; transition: opacity 0.2s;}
+    .action-btn:hover { opacity: 0.9; }
     .btn-pay { background: #3b82f6; }
+    .btn-pay-rest { background: #10b981; }
     .btn-edit { background: #6b7280; }
     
     #editModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
@@ -86,14 +102,15 @@
       </div>
 
       <div class="summary-card" id="summaryCard" style="display:none;">
-        <h2 id="summaryText">Gesamtsumme noch offen:</h2>
+        <h2 id="summaryText">Gesamtsumme noch offen (Einnahmen):</h2>
         <div class="amount" id="totalOpenAmount">0,00 €</div>
       </div>
 
       <div class="quickbar" id="quickbar">
-        <strong>Neuer Eintrag:</strong>
+        <span class="quickbar-title">Neuer Eintrag:</span>
         <input id="newKunde" placeholder="Kunde/Firma" style="width: 150px;">
         <input id="newRef" placeholder="Ref-Nr. (RE-001)" style="width: 130px;">
+        <input id="newZweck" placeholder="Zweck (z.B. Tanken)" style="width: 140px;">
         <select id="newType">
           <option value="rechnung">Rechnung</option>
           <option value="buchung">Buchung</option>
@@ -104,7 +121,7 @@
           <option value="7">7% MwSt</option>
           <option value="0">Ohne MwSt</option>
         </select>
-        <label for="newDate" style="color:#92400e; font-weight:600;">Fällig am:</label>
+        <span style="color:#92400e; font-weight:600; margin-left:5px;">Datum:</span>
         <input id="newDate" type="date">
         <input id="newBetrag" type="number" step="0.01" placeholder="Brutto €" style="width: 100px;">
         <button class="add-btn" onclick="addPayment()">Hinzufügen</button>
@@ -116,8 +133,9 @@
             <tr>
               <th>Kunde</th>
               <th>Referenz</th>
+              <th>Zweck</th>
               <th>Typ</th>
-              <th>Fällig am</th>
+              <th>Datum</th>
               <th>Gesamt</th>
               <th>Anzahlung</th>
               <th>Bezahlt</th>
@@ -127,14 +145,13 @@
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr><td colspan="10" style="text-align:center;">Lade Daten...</td></tr>
+            <tr><td colspan="11" style="text-align:center;">Lade Daten...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ERWEITERTES EDIT MODAL -->
   <div id="editModal">
     <div class="modal-content">
       <h3 style="margin-top:0;">Eintrag bearbeiten</h3>
@@ -143,6 +160,9 @@
       
       <label>Kunde / Firma</label>
       <input type="text" id="editKunde">
+
+      <label>Kategorie / Zweck</label>
+      <input type="text" id="editZweck">
       
       <label>Referenz (Rechnungs-Nr)</label>
       <input type="text" id="editRef">
@@ -151,7 +171,7 @@
         <label style="color:#92400e; font-weight:bold;">Brutto-Gesamtbetrag (Forderung in €)</label>
         <input type="number" step="0.01" id="editGesamt" style="margin-bottom:0.5rem;">
         
-        <label style="color:#92400e; font-size:0.85rem;">Steuersatz (nur für manuelle Rechnungen/Ausgaben wichtig)</label>
+        <label style="color:#92400e; font-size:0.85rem;">Steuersatz (nur für manuelle Einträge)</label>
         <select id="editSteuer" style="margin-bottom:0;">
           <option value="19">19% MwSt</option>
           <option value="7">7% MwSt</option>
@@ -184,6 +204,11 @@
 
     let currentTab = 'offen'; 
     let allPayments = []; 
+
+    // Zahlen schön als deutsche Währung formatieren (15.000,00 €)
+    function formatCurrency(number) {
+        return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(number);
+    }
 
     function switchTab(tab) {
       currentTab = tab;
@@ -260,11 +285,24 @@
 
         const anzFällig = row.deposit_due ? new Date(row.deposit_due).toLocaleDateString('de-DE') : '-';
         const endFällig = row.final_due ? new Date(row.final_due).toLocaleDateString('de-DE') : '-';
-        const farbe = row.cash_flow_direction === 'out' ? 'color: #991b1b;' : '';
+        
+        let farbe = '';
+        if (row.cash_flow_direction === 'out') {
+            farbe = currentTab === 'archiv' ? 'color: #9ca3af;' : 'color: #991b1b;';
+        }
 
-        let anzAnzeige = '-';
+        let anzAnzeige = `<span class="empty-cell">-</span>`;
         if (row.transaction_type === 'buchung' && anzForderung > 0) {
-            anzAnzeige = `${anzForderung.toFixed(2)} €`;
+            anzAnzeige = formatCurrency(anzForderung);
+        }
+
+        let refAnzeige = row.invoice_number ? row.invoice_number : `<span class="empty-cell">-</span>`;
+        
+        let anzeigeZweck = `<span class="empty-cell">-</span>`;
+        if (row.note && row.note.trim() !== '') {
+            anzeigeZweck = row.note;
+        } else if (row.transaction_type === 'buchung') {
+            anzeigeZweck = '<span style="color:#9ca3af;font-size:0.8rem;">Miete</span>';
         }
 
         let offenStyle = "color:red; font-weight:bold; background:#fee2e2; border-radius:4px; text-align:center;";
@@ -272,51 +310,50 @@
             offenStyle = "color:#10b981; font-weight:bold; text-align:center;"; 
         }
 
-        // Steuersatz für Edit ermitteln
         let rowSteuer = "19";
         if (t7 > 0 && t19 === 0) rowSteuer = "7";
         if (t7 === 0 && t19 === 0 && row.transaction_type !== 'buchung') rowSteuer = "0";
 
-        // ACTION BUTTONS
-        let actionBtns = `<button class="action-btn btn-edit" onclick="openEditModal('${row.id}', '${row.customer_name}', '${row.invoice_number}', ${total}, ${anzBezahlt}, ${endBezahlt}, '${row.transaction_type}', '${rowSteuer}')">✏️ Edit</button>`;
-        let faelligAnzeige = `<b>${anzFällig}</b>`;
+        let actionBtns = `<button class="action-btn btn-edit" onclick="openEditModal('${row.id}', '${row.customer_name}', '${row.invoice_number}', ${total}, ${anzBezahlt}, ${endBezahlt}, '${row.transaction_type}', '${rowSteuer}', '${row.note || ''}')">✏️ Edit</button>`;
+        let faelligAnzeige = `<span style="color:#4b5563;">${anzFällig}</span>`;
 
         if (currentTab === 'offen') {
             if (row.transaction_type === 'buchung') {
-                faelligAnzeige = `Anz: <b>${anzFällig}</b><br><small style="color:#6b7280;">Rest: ${endFällig}</small>`;
+                faelligAnzeige = `Anz: <b>${anzFällig}</b><br><small style="color:#9ca3af;">Rest: ${endFällig}</small>`;
                 const anzOffen = anzForderung - anzBezahlt;
                 const endOffen = endForderung - endBezahlt;
                 
-                if (anzOffen > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${anzOffen}, ${anzBezahlt}, 'Anzahlung')">💰 Anz. (${anzOffen.toFixed(2)}€)</button>`;
-                if (endOffen > 0) actionBtns += `<button class="action-btn btn-pay" style="background:#10b981; margin-top:2px;" onclick="payPartial('${row.id}', 'final_paid', ${endOffen}, ${endBezahlt}, 'Restbetrag')">💰 Rest (${endOffen.toFixed(2)}€)</button>`;
+                if (anzOffen > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${anzOffen}, ${anzBezahlt}, 'Anzahlung')">💰 Anz. (${formatCurrency(anzOffen)})</button>`;
+                if (endOffen > 0) actionBtns += `<button class="action-btn btn-pay-rest" onclick="payPartial('${row.id}', 'final_paid', ${endOffen}, ${endBezahlt}, 'Restbetrag')">💰 Rest (${formatCurrency(endOffen)})</button>`;
             } else {
-                if (offenGesamt > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${offenGesamt}, ${anzBezahlt}, 'Rechnung')">💰 Voll/Teil (${offenGesamt.toFixed(2)}€)</button>`;
+                if (offenGesamt > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${offenGesamt}, ${anzBezahlt}, 'Rechnung')">💰 Bezahlen (${formatCurrency(offenGesamt)})</button>`;
             }
         } else {
-            if (row.transaction_type === 'buchung') faelligAnzeige = `Anz: <b>${anzFällig}</b><br><small style="color:#6b7280;">Rest: ${endFällig}</small>`;
+            if (row.transaction_type === 'buchung') faelligAnzeige = `Anz: <span style="color:#4b5563;">${anzFällig}</span><br><small style="color:#9ca3af;">Rest: ${endFällig}</small>`;
         }
 
         tbody.innerHTML += `
           <tr style="${farbe}">
-            <td><strong>${row.customer_name || '-'}</strong></td>
-            <td><code>${row.invoice_number || '-'}</code></td>
-            <td><span style="font-size:0.8rem; background:#f3f4f6; padding:2px 6px; border-radius:4px;">${row.transaction_type}</span></td>
+            <td class="col-kunde">${row.customer_name || '<span class="empty-cell">-</span>'}</td>
+            <td class="col-ref">${refAnzeige}</td>
+            <td class="col-zweck">${anzeigeZweck}</td>
+            <td><span style="font-size:0.75rem; font-weight:600; text-transform:uppercase; background:#f3f4f6; color:#4b5563; padding:3px 6px; border-radius:4px; border:1px solid #e5e7eb;">${row.transaction_type}</span></td>
             <td>${faelligAnzeige}</td>
-            <td style="font-weight:bold;">${total.toFixed(2)} €</td>
-            <td style="color:#6b7280;">${anzAnzeige}</td>
-            <td style="color:#10b981;">${bezahltGesamt.toFixed(2)} €</td>
-            <td style="${offenStyle}">${offenGesamt.toFixed(2)} €</td>
+            <td class="col-betrag" style="font-weight:bold;">${formatCurrency(total)}</td>
+            <td class="col-anzahlung" style="color:#6b7280; font-family:monospace; font-size:0.85rem;">${anzAnzeige}</td>
+            <td class="col-bezahlt" style="color:#10b981; font-weight:600;">${formatCurrency(bezahltGesamt)}</td>
+            <td class="col-offen" style="${offenStyle}">${formatCurrency(offenGesamt)}</td>
             <td><span class="status-pill ${getStatusClass(row.status)}">${(row.status || 'offen').toUpperCase()}</span></td>
-            <td style="display:flex; flex-direction:column; gap:4px;">${actionBtns}</td>
+            <td style="display:flex; flex-direction:column; justify-content:center; gap:4px; padding-right:10px;">${actionBtns}</td>
           </tr>
         `;
       });
 
-      if (countAnsicht === 0) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:#6b7280;">Keine Einträge in dieser Ansicht.</td></tr>`;
+      if (countAnsicht === 0) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:3rem; color:#6b7280; font-style:italic;">Alles erledigt! Keine Einträge in dieser Ansicht.</td></tr>`;
 
       if (currentTab === 'offen') {
           document.getElementById('summaryText').textContent = 'Gesamtsumme noch offen (Einnahmen):';
-          document.getElementById('totalOpenAmount').textContent = sumOffen.toFixed(2).replace('.', ',') + ' €';
+          document.getElementById('totalOpenAmount').textContent = formatCurrency(sumOffen);
           document.getElementById('totalOpenAmount').style.color = '#dc2626';
           document.getElementById('summaryCard').style.display = 'flex';
       } else {
@@ -331,7 +368,7 @@
     }
 
     async function payPartial(id, dbField, offenerBetrag, bisherGezahlt, title) {
-      let input = prompt(`Forderung: ${title}\nNoch offen: ${offenerBetrag.toFixed(2)} €\n\nWie viel € hat der Kunde JETZT überwiesen?`, offenerBetrag.toFixed(2));
+      let input = prompt(`Forderung: ${title}\nNoch offen: ${formatCurrency(offenerBetrag)}\n\nWie viel € hat der Kunde JETZT überwiesen?`, offenerBetrag.toFixed(2));
       if (input === null || input.trim() === '') return; 
       
       let gezahltNeu = parseFloat(input.replace(',', '.'));
@@ -350,6 +387,7 @@
     async function addPayment() {
       const kunde = document.getElementById('newKunde').value.trim();
       const ref = document.getElementById('newRef').value.trim();
+      const zweck = document.getElementById('newZweck').value.trim();
       const typ = document.getElementById('newType').value;
       const steuer = document.getElementById('newSteuer').value;
       const dateVal = document.getElementById('newDate').value;
@@ -366,7 +404,7 @@
 
       try {
         const { error } = await sb.from('payments').insert([{
-          customer_name: kunde, invoice_number: ref, transaction_type: typ,
+          customer_name: kunde, invoice_number: ref, transaction_type: typ, note: zweck,
           total_amount: betrag, deposit_amount: betrag, deposit_paid: 0,
           final_amount: 0, final_paid: 0,
           total_amount_19: tot19, total_amount_7: tot7,
@@ -377,22 +415,22 @@
         if (error) throw error;
         
         document.getElementById('newKunde').value = ''; document.getElementById('newRef').value = '';
-        document.getElementById('newBetrag').value = ''; document.getElementById('newDate').value = '';
+        document.getElementById('newZweck').value = ''; document.getElementById('newBetrag').value = ''; 
+        document.getElementById('newDate').value = '';
         loadData();
       } catch(err) { alert("Insert Fehler: " + err.message); }
     }
 
-    // MODAL OPEN
-    function openEditModal(id, kunde, ref, gesamt, anzBezahlt, endBezahlt, typ, steuer) {
+    function openEditModal(id, kunde, ref, gesamt, anzBezahlt, endBezahlt, typ, steuer, zweck) {
       document.getElementById('editId').value = id;
       document.getElementById('editOriginalType').value = typ;
       document.getElementById('editGesamt').value = gesamt; 
       document.getElementById('editKunde').value = kunde;
+      document.getElementById('editZweck').value = (zweck === 'null' || zweck === 'undefined') ? '' : zweck;
       document.getElementById('editRef').value = (ref === 'null' || ref === 'undefined') ? '' : ref;
       document.getElementById('editAnzGezahlt').value = anzBezahlt;
       document.getElementById('editRestGezahlt').value = endBezahlt;
       
-      // Steuer-Dropdown nur aktivieren, wenn es keine Buchung ist
       const steuerSelect = document.getElementById('editSteuer');
       if (typ === 'buchung') {
           steuerSelect.disabled = true;
@@ -407,7 +445,6 @@
 
     function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
-    // DELETE EINER RECHNUNG
     async function deletePayment() {
       const id = document.getElementById('editId').value;
       const ref = document.getElementById('editRef').value;
@@ -423,12 +460,12 @@
       } catch(err) { alert("Fehler beim Löschen: " + err.message); }
     }
 
-    // SPEICHERN MIT NEUEN BETRÄGEN
     async function saveEdit() {
       const id = document.getElementById('editId').value;
       const typ = document.getElementById('editOriginalType').value;
       const total = parseFloat(document.getElementById('editGesamt').value) || 0;
       const kunde = document.getElementById('editKunde').value;
+      const zweck = document.getElementById('editZweck').value;
       const ref = document.getElementById('editRef').value;
       const anzGezahlt = parseFloat(document.getElementById('editAnzGezahlt').value) || 0;
       const endGezahlt = parseFloat(document.getElementById('editRestGezahlt').value) || 0;
@@ -438,15 +475,13 @@
       if ((anzGezahlt + endGezahlt) >= total && total > 0) neuerStatus = 'abgeschlossen';
       else if ((anzGezahlt + endGezahlt) > 0) neuerStatus = 'teilbezahlt';
 
-      // Wenn es eine normale Rechnung/Ausgabe ist, berechnen wir die Steuern auf den neuen Betrag
       let updateData = {
-          customer_name: kunde, invoice_number: ref,
-          total_amount: total,
-          deposit_paid: anzGezahlt, final_paid: endGezahlt, status: neuerStatus
+          customer_name: kunde, invoice_number: ref, note: zweck,
+          total_amount: total, deposit_paid: anzGezahlt, final_paid: endGezahlt, status: neuerStatus
       };
 
       if (typ !== 'buchung') {
-          updateData.deposit_amount = total; // Anz-Forderung gleich Gesamt
+          updateData.deposit_amount = total; 
           let net = total, tax19 = 0, tax7 = 0, tot19 = 0, tot7 = 0;
           if (steuer === '19') { net = total / 1.19; tax19 = total - net; tot19 = total; } 
           else if (steuer === '7') { net = total / 1.07; tax7 = total - net; tot7 = total; }
