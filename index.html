@@ -5,28 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zahlungseingänge - Warnow Moments Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: #f3f4f6; padding: 0; margin: 0; color: #111827; }
-    
+
     #loginGate { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1D334A 0%, #111827 100%); display: flex; justify-content: center; align-items: center; z-index: 9999; }
     .login-box { background: white; padding: 2.5rem; border-radius: 1rem; width: 100%; max-width: 400px; text-align: center; }
     .login-box input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #d1d5db; border-radius: 0.5rem; }
     .login-btn { width: 100%; padding: 0.75rem; background: #ea580c; color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
 
     #appContent { display: none; padding: 1.5rem; }
-    .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
-    header { padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .container { max-width: 1480px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
+    header { padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     header h1 { margin: 0; font-size: 1.75rem; }
-    .logout-btn { padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: bold;}
+    .header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .logout-btn, .export-btn, .secondary-btn { padding: 0.5rem 1rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: bold; }
+    .logout-btn { background: #ef4444; }
+    .export-btn.csv { background: #2563eb; }
+    .export-btn.xlsx { background: #0f766e; }
+    .secondary-btn { background: #7c3aed; }
 
-    .tab-bar { display: flex; gap: 1rem; padding: 0 2rem; border-bottom: 2px solid #e5e7eb; background: #f9fafb; }
+    .tab-bar { display: flex; gap: 1rem; padding: 0 2rem; border-bottom: 2px solid #e5e7eb; background: #f9fafb; flex-wrap: wrap; }
     .tab-btn { padding: 1rem 1.5rem; background: none; border: none; font-size: 1.05rem; font-weight: 700; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
     .tab-btn:hover { color: #111827; }
     .tab-btn.active { color: #ea580c; border-bottom-color: #ea580c; }
 
-    .summary-card { background: #eff6ff; border-bottom: 1px solid #bfdbfe; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .summary-card { background: #eff6ff; border-bottom: 1px solid #bfdbfe; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     .summary-card h2 { margin: 0; color: #1e3a8a; font-size: 1.2rem; }
     .summary-card .amount { font-size: 1.5rem; font-weight: 800; color: #dc2626; }
 
@@ -37,53 +43,111 @@
     .add-btn { padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
     .add-btn:hover { background: #059669; }
 
-    /* VERBESSERTE TABELLE */
+    .offer-box { background: #faf5ff; padding: 1rem 2rem; border-bottom: 1px solid #ddd6fe; display: none; }
+    .offer-box h3 { margin: 0 0 0.75rem 0; color: #6d28d9; }
+    .offer-box p { margin: 0; color: #6b7280; }
+    .offer-box code { background: #ede9fe; padding: 0.1rem 0.35rem; border-radius: 0.35rem; }
+
     .table-wrapper { padding: 1.5rem 2rem; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1350px; }
     thead tr { background: #111827; color: white; }
-    th { padding: 1rem 0.85rem; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #d1d5db; border-bottom: 2px solid #374151; }
+    th { padding: 1rem 0.85rem; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #d1d5db; border-bottom: 2px solid #374151; white-space: nowrap; }
     td { padding: 1rem 0.85rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; vertical-align: middle; }
     tbody tr:hover { background: #f9fafb; }
-    
+
     .col-kunde { min-width: 150px; font-weight: 600; }
     .col-ref { min-width: 140px; font-family: monospace; font-size: 0.85rem; color: #4b5563; }
     .col-zweck { min-width: 120px; color: #4b5563; }
-    
-    /* Verhindert Umbrüche beim Euro-Zeichen! */
     .col-betrag, .col-bezahlt, .col-offen, .col-anzahlung { white-space: nowrap; }
-    
-    .empty-cell { color: #d1d5db; font-weight: normal; } 
+    .empty-cell { color: #d1d5db; font-weight: normal; }
 
     .status-pill { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: bold; letter-spacing: 0.05em; }
     .status-offen { background: #fee2e2; color: #991b1b; }
     .status-teilbezahlt { background: #dbeafe; color: #1e40af; }
     .status-abgeschlossen { background: #dcfce7; color: #166534; }
+    .status-angebot { background: #f3e8ff; color: #6b21a8; }
+    .status-ampel-gruen { background: #dcfce7; color: #166534; }
+    .status-ampel-gelb { background: #fef3c7; color: #92400e; }
+    .status-ampel-rot { background: #fee2e2; color: #991b1b; }
+    .status-ampel-grau { background: #e5e7eb; color: #374151; }
 
-    .action-btn { padding: 0.4rem 0.75rem; border: none; border-radius: 0.4rem; color: white; font-size: 0.75rem; font-weight: bold; cursor: pointer; margin-bottom: 0.25rem; width: 100%; text-align: center; display: block; transition: opacity 0.2s;}
+    .validity-pill { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; display: inline-block; white-space: nowrap; }
+    .validity-ok { background: #dcfce7; color: #166534; }
+    .validity-soon { background: #fef3c7; color: #92400e; }
+    .validity-expired { background: #fee2e2; color: #991b1b; }
+    .validity-missing { background: #e5e7eb; color: #374151; }
+
+    .action-btn { padding: 0.4rem 0.75rem; border: none; border-radius: 0.4rem; color: white; font-size: 0.75rem; font-weight: bold; cursor: pointer; margin-bottom: 0.25rem; width: 100%; text-align: center; display: block; transition: opacity 0.2s; }
     .action-btn:hover { opacity: 0.9; }
     .btn-pay { background: #3b82f6; }
     .btn-pay-rest { background: #10b981; }
     .btn-edit { background: #6b7280; }
-    
+
     #editModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-content { background: white; padding: 2rem; border-radius: 1rem; width: 450px; max-height: 90vh; overflow-y: auto;}
+    .modal-content { background: white; padding: 2rem; border-radius: 1rem; width: 520px; max-height: 90vh; overflow-y: auto; }
     .modal-content input, .modal-content select { width: 100%; padding: 0.6rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 0.4rem; }
-    .modal-actions { display: flex; justify-content: space-between; margin-top: 1.5rem; align-items: center; }
-    .btn-save { background: #10b981; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer;}
-    .btn-cancel { background: #9ca3af; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer;}
-    .btn-delete { background: #ef4444; color: white; padding: 0.4rem 0.8rem; border: none; border-radius: 0.4rem; font-size: 0.85rem; cursor: pointer;}
+    .modal-actions { display: flex; justify-content: space-between; margin-top: 1.5rem; align-items: center; gap: 1rem; }
+    .btn-save { background: #10b981; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer; }
+    .btn-cancel { background: #9ca3af; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; font-weight: bold; cursor: pointer; }
+    .btn-delete { background: #ef4444; color: white; padding: 0.4rem 0.8rem; border: none; border-radius: 0.4rem; font-size: 0.85rem; cursor: pointer; }
     .hidden { display: none !important; }
+
+    @media (max-width: 900px) {
+      #appContent { padding: 0.75rem; }
+      header { padding: 1rem; flex-direction: column; align-items: flex-start; }
+      .tab-bar, .summary-card, .quickbar, .offer-box, .table-wrapper { padding-left: 1rem; padding-right: 1rem; }
+      .summary-card { flex-direction: column; align-items: flex-start; }
+    }
+/* ... dein bisheriger CSS Code ... */
+
+.status-traffic {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 12px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+
+.status-dot.rot { background: #dc2626; }
+.status-dot.gelb { background: #f59e0b; }
+.status-dot.gruen { background: #10b981; }
+.status-dot.grau { background: #9ca3af; }
+
+.col-actions {
+  width: 120px;
+}
+
+.actions-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.actions-compact .action-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 6px;
+  font-size: 0.76rem;
+  line-height: 1.05;
+}
+</style>
   </style>
 </head>
 <body>
-
   <div id="loginGate">
     <div class="login-box">
       <h2>🔒 Team Login</h2>
       <p style="color:#6b7280; font-size:0.9rem;">Warnow Moments Zahlungen</p>
       <input type="email" id="loginEmail" placeholder="Team E-Mail" required>
       <input type="password" id="loginPassword" placeholder="Passwort" required>
-      <div class="cf-turnstile" data-sitekey="0x4AAAAAAA26R2Z_eR1iY46W" style="margin: 1rem auto; display: flex; justify-content: center;"></div>
       <button class="login-btn" onclick="handleLogin()">Einloggen</button>
       <p id="loginError" style="color: red; font-size: 0.85rem; margin-top: 1rem;"></p>
     </div>
@@ -92,62 +156,184 @@
   <div id="appContent">
     <div class="container">
       <header>
-        <h1>💰 Zahlungseingänge & Fristen</h1>
-        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        <h1>💰 Zahlungseingänge, Exporte & Angebote</h1>
+        <div class="header-actions">
+          <button class="export-btn csv" onclick="exportPaymentsCSV()">CSV Export</button>
+                  <button class="export-btn" style="background: #047857;" onclick="exportTaxAdvisorXLSX()" title="Optimiert für die Buchhaltung/Steuerberater">Excel für Steuerberater</button>
+          <button class="secondary-btn" onclick="zeigeSQLHinweis()">SQL für Angebote</button>
+          <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
       </header>
 
       <div class="tab-bar">
-        <button class="tab-btn active" id="tabOffen" onclick="switchTab('offen')">📂 Offene Posten</button>
+        <button class="tab-btn active" id="tabOffen" onclick="switchTab('offen')">📂 Offene Posten (inkl. AB-Anzahlungen)</button>
         <button class="tab-btn" id="tabArchiv" onclick="switchTab('archiv')">✅ Archiv (Erledigt)</button>
-      </div>
+        <button class="tab-btn" id="tabStorno" onclick="switchTab('storno')">🧾 Storno / Ausfall</button>
+        <button class="tab-btn" id="tabAngebote" onclick="switchTab('angebote')">📄 Angebote</button>
+              </div>
 
       <div class="summary-card" id="summaryCard" style="display:none;">
         <h2 id="summaryText">Gesamtsumme noch offen (Einnahmen):</h2>
         <div class="amount" id="totalOpenAmount">0,00 €</div>
       </div>
-
-      <div class="quickbar" id="quickbar">
-        <span class="quickbar-title">Neuer Eintrag:</span>
-        <input id="newKunde" placeholder="Kunde/Firma" style="width: 150px;">
-        <input id="newRef" placeholder="Ref-Nr. (RE-001)" style="width: 130px;">
-        <input id="newZweck" placeholder="Zweck (z.B. Tanken)" style="width: 140px;">
-        <select id="newType">
-          <option value="rechnung">Rechnung</option>
-          <option value="buchung">Buchung</option>
-          <option value="ausgabe">Ausgabe</option>
-        </select>
-        <select id="newSteuer">
-          <option value="19">19% MwSt</option>
-          <option value="7">7% MwSt</option>
-          <option value="0">Ohne MwSt</option>
-        </select>
-        <span style="color:#92400e; font-weight:600; margin-left:5px;">Datum:</span>
-        <input id="newDate" type="date">
-        <input id="newBetrag" type="number" step="0.01" placeholder="Brutto €" style="width: 100px;">
-        <button class="add-btn" onclick="addPayment()">Hinzufügen</button>
+      <div class="summary-card" id="reconPanel" style="display:none; margin-top:12px; background:#fff7ed; border:1px solid #fdba74;">
+        <h2 style="margin-bottom:8px; color:#9a3412;">Abgleich Geldfluss</h2>
+        <div id="reconStats" style="font-size:0.95rem; color:#7c2d12; line-height:1.6;">
+          <div>In Summe enthalten: <b id="reconIncludedCount">0</b> Datensätze</div>
+          <div>Nicht enthalten: <b id="reconExcludedCount">0</b> Datensätze</div>
+          <div>Abgleich-Hinweis: <b id="reconDifference">0,00 €</b></div>
+        </div>
+        <div id="reconTopMissing" style="margin-top:10px; font-size:0.85rem; color:#7c2d12;"></div>
+      </div>
+<div class="offer-box" id="offerBox">
+        <h3>Angebotsübersicht</h3>
+        <p>Hier siehst du offene Angebote mit ihrer Gültigkeit. Für die Anzeige wird das Feld <code>offer_valid_until</code> genutzt; Angebote haben den Typ <code>angebot</code>.</p>
       </div>
 
-      <div class="table-wrapper">
+      <div class="filter-bar" id="filterBar" style="padding:0.9rem 2rem;border-bottom:1px solid #e5e7eb;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;background:#fff;">
+        <input id="searchCustomer" placeholder="Kunde, Referenz oder Zweck suchen..." style="padding:0.55rem 0.7rem;border:1px solid #d1d5db;border-radius:0.4rem;min-width:260px;">
+        <select id="openSort" style="padding:0.55rem 0.7rem;border:1px solid #d1d5db;border-radius:0.4rem;display:none;">
+          <option value="date_desc">Offene Posten: Fälligkeit neu → alt</option>
+          <option value="date_asc">Offene Posten: Fälligkeit alt → neu</option>
+          <option value="customer_asc">Offene Posten: Kunde A-Z</option>
+          <option value="amount_desc">Offene Posten: Betrag hoch → niedrig</option>
+          <option value="amount_asc">Offene Posten: Betrag niedrig → hoch</option>
+          <option value="customer_desc">Offene Posten: Kunde Z-A</option>
+        </select>
+        <select id="angeboteSort" style="padding:0.55rem 0.7rem;border:1px solid #d1d5db;border-radius:0.4rem;display:none;">
+          <option value="validity_asc">Angebote: Gültigkeit aufsteigend</option>
+          <option value="validity_desc">Angebote: Gültigkeit absteigend</option>
+          <option value="customer_asc">Angebote: Kunde A-Z</option>
+          <option value="amount_desc">Angebote: Betrag absteigend</option>
+        </select>
+      </div>
+
+      <div class="quickbar" id="quickbar" style="display: flex; flex-direction: column; gap: 12px; align-items: stretch; padding: 15px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <span class="quickbar-title" style="min-width: 100px; margin: 0;">1. Beleg:</span>
+          <input id="newKunde" placeholder="Kunde/Firma" style="width: 140px;">
+          <input id="newRef" placeholder="Ref-Nr." style="width: 110px;">
+          <input id="newZweck" placeholder="Zweck/Note" style="width: 130px;">
+          <select id="newType">
+            <option value="rechnung">Ausgangsrechnung (Kunde)</option>
+            <option value="buchung">Buchung / Reservierung</option>
+            <option value="angebot">Angebot</option>
+            <option value="eingangsrechnung">Eingangsrechnung (Wir zahlen)</option>
+            <option value="ausgabe">Sonstige Ausgabe</option>
+            <option value="in">Sonstige Einnahme (Einlage etc.)</option>
+          </select>
+          <select id="newSteuer">
+            <option value="19">19% MwSt</option>
+            <option value="7">7% MwSt</option>
+            <option value="0">Ohne MwSt</option>
+          </select>
+          <input id="newBetrag" type="number" step="0.01" placeholder="Brutto €" style="width: 90px; font-weight: bold;">
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <span class="quickbar-title" style="min-width: 100px; margin: 0;">2. Daten:</span>
+
+          <span style="font-size:0.85rem; font-weight:600; color:#374151;">Belegdatum:</span>
+          <input id="newDate" type="date" title="Belegdatum" style="padding:0.4rem; font-size:0.9rem; cursor: pointer; border:1px solid #d1d5db; border-radius:4px;">
+
+          <span style="font-size:0.85rem; font-weight:600; color:#374151; margin-left: 10px;">Fällig am:</span>
+          <input id="newDueDate" type="date" title="Fälligkeitsdatum" style="padding:0.4rem; font-size:0.9rem; cursor: pointer; border:1px solid #d1d5db; border-radius:4px;">
+
+          <span style="font-size:0.85rem; font-weight:600; color:#047857; margin-left: 10px;">Bezahlt am:</span>
+          <input id="newPaidDate" type="date" title="Datum laut Kontoauszug" style="padding:0.4rem; font-size:0.9rem; cursor: pointer; border:1px solid #d1d5db; border-radius:4px;">
+          <span style="font-size:0.75rem; color:#6b7280; font-style:italic;">(Kontoauszug)</span>
+
+          <button class="add-btn" style="margin-left: auto; padding: 8px 16px; font-size: 0.9rem;" onclick="addPayment()">Speichern</button>
+        </div>
+      </div>
+
+      <div id="typeSummaryCard" style="padding: 0.9rem 2rem; background: #eff6ff; border-bottom: 1px solid #bfdbfe; display:none; align-items:center; gap:18px; flex-wrap:wrap;">
+          <div style="font-weight:800; color:#1e3a8a;">Typ-Summe</div>
+          <div>Umsatz: <span id="typeSummaryIncome" style="font-weight:800; color:#166534;">0,00 €</span></div>
+          <div>Ausgaben: <span id="typeSummaryExpense" style="font-weight:800; color:#991b1b;">0,00 €</span></div>
+          <div>Erwartet: <span id="typeSummaryExpected" style="font-weight:800; color:#6d28d9;">0,00 €</span></div>
+        </div>
+        <div id="archiveTypeFilterBar" style="padding: 0.9rem 2rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span style="font-weight:700; color:#374151;">Archiv filtern:</span>
+          <select id="typeFilter" style="padding: 0.55rem 0.8rem; border-radius: 0.5rem; border: 1px solid #d1d5db; color: #374151; background: #fff; cursor: pointer; min-width: 240px;">
+            <option value="alle">Alle Typen anzeigen</option>
+            <option value="eingangsrechnung">Nur Eingangsrechnungen</option>
+            <option value="ausgabe">Nur Ausgaben</option>
+            <option value="rechnung">Nur Rechnungen</option>
+            <option value="angebot">Nur Angebote</option>
+            <option value="auftragsbestaetigung">Nur Auftragsbestätigungen</option>
+            <option value="buchung">Nur Buchungen</option>
+          </select>
+          <button type="button" onclick="applyArchiveFilter()" style="padding:0.55rem 0.9rem;border:1px solid #d1d5db;border-radius:0.5rem;background:#e5e7eb;color:#111827;cursor:pointer;">Anwenden</button>
+          <button type="button" onclick="resetArchiveFilter()" style="padding:0.55rem 0.9rem;border:1px solid #d1d5db;border-radius:0.5rem;background:#e5e7eb;color:#111827;cursor:pointer;">Zurücksetzen</button>
+          <span id="archiveTypeFilterLabel" style="margin-left:8px;color:#6b7280;font-size:0.95rem;"></span>
+        </div>
+        <div class="table-wrapper">
         <table>
-          <thead>
-            <tr>
-              <th>Kunde</th>
-              <th>Referenz</th>
-              <th>Zweck</th>
-              <th>Typ</th>
-              <th>Datum</th>
-              <th>Gesamt</th>
-              <th>Anzahlung</th>
-              <th>Bezahlt</th>
-              <th>Offen</th>
-              <th>Status</th>
-              <th>Aktionen</th>
-            </tr>
-          </thead>
+          <thead id="mainTableHead"></thead>
           <tbody id="tableBody">
-            <tr><td colspan="11" style="text-align:center;">Lade Daten...</td></tr>
+            <tr><td colspan="12" style="text-align:center;">Lade Daten...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+    <!-- Payment Modal -->
+  <div id="paymentModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999;">
+    <div class="modal-content" style="max-width: 400px; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;">
+      <h3 style="margin-top:0; color:#1e40af; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;" id="payModalTitle">Zahlung buchen</h3>
+
+      <div class="form-group" id="payModalAmountGroup" style="display: flex; flex-direction: column; margin-bottom: 15px;">
+        <label style="font-weight:bold; margin-bottom: 5px;">Betrag (€)</label>
+        <input type="number" id="payModalAmount" step="0.01" style="font-size:1.2rem; font-weight:bold; padding:10px; width: 100%; border: 1px solid #d1d5db; border-radius: 4px;">
+      </div>
+
+      <div class="form-group" style="display: flex; flex-direction: column; margin-bottom: 15px;">
+        <label style="font-weight:bold; margin-bottom: 5px;">Zahlungsdatum (laut Kontoauszug)</label>
+        <input type="date" id="payModalDate" style="padding:10px; font-size:1rem; cursor:pointer; width: 100%; border: 1px solid #d1d5db; border-radius: 4px;">
+      </div>
+
+      <input type="hidden" id="payModalId">
+      <input type="hidden" id="payModalDbField">
+      <input type="hidden" id="payModalOffenerBetrag">
+      <input type="hidden" id="payModalBisherGezahlt">
+      <input type="hidden" id="payModalIsFull">
+
+      <div class="modal-actions" style="margin-top: 25px; display: flex; gap: 15px;">
+        <button class="action-btn" onclick="closePaymentModal()" style="background:#e5e7eb; color:#374151; flex:1; padding:12px; font-size:1rem; border:none; border-radius:4px; cursor:pointer;">Abbrechen</button>
+        <button class="action-btn btn-save" onclick="savePaymentModal()" style="flex:1; padding:12px; font-size:1rem; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Zahlung verbuchen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="stornoModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999;">
+    <div class="modal-content" style="max-width: 520px; padding: 25px; background:white; border-radius:8px; width:100%;">
+      <h3 style="margin-top:0; color:#991b1b; border-bottom:2px solid #f3f4f6; padding-bottom:10px;">Storno / Ausfall erfassen</h3>
+      <p style="color:#6b7280; margin-top:0;">Hier legst du fest, ob die Anzahlung einbehalten, teilweise zurückgezahlt oder komplett erstattet wird.</p>
+      <input type="hidden" id="stornoId">
+      <div class="form-group" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+        <label>Storno-Datum</label>
+        <input type="date" id="stornoDate" style="padding:10px; border:1px solid #d1d5db; border-radius:4px;">
+      </div>
+      <div class="form-group" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+        <label>Storno-Grund</label>
+        <input type="text" id="stornoReason" placeholder="z.B. Krankheit, kurzfristige Absage" style="padding:10px; border:1px solid #d1d5db; border-radius:4px;">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div class="form-group" style="display:flex; flex-direction:column; gap:6px;">
+          <label>Einbehaltene Gebühr</label>
+          <input type="number" id="stornoFee" step="0.01" placeholder="0.00" style="padding:10px; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+        <div class="form-group" style="display:flex; flex-direction:column; gap:6px;">
+          <label>Rückzahlung</label>
+          <input type="number" id="stornoRefund" step="0.01" placeholder="0.00" style="padding:10px; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+      </div>
+      <div class="modal-actions" style="display:flex; gap:12px; margin-top:20px;">
+        <button class="action-btn" onclick="closeStornoModal()" style="background:#e5e7eb; color:#374151; flex:1; padding:12px; border:none; border-radius:4px;">Abbrechen</button>
+        <button class="action-btn" onclick="saveStornoModal()" style="background:#dc2626; color:white; flex:1; padding:12px; border:none; border-radius:4px;">Storno buchen</button>
       </div>
     </div>
   </div>
@@ -157,34 +343,72 @@
       <h3 style="margin-top:0;">Eintrag bearbeiten</h3>
       <input type="hidden" id="editId">
       <input type="hidden" id="editOriginalType">
-      
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin:0.75rem 0 1rem;" id="editDatesGrid">
+        <div>
+          <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.25rem;">Belegdatum</label>
+          <input type="date" id="editDocumentDate" style="padding:10px;border:1px solid #d1d5db;border-radius:4px;width:100%;">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.25rem;">Fälligkeitsdatum</label>
+          <input type="date" id="editDueDate" style="padding:10px;border:1px solid #d1d5db;border-radius:4px;width:100%;">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.25rem;">Bezahlt am</label>
+          <input type="date" id="editPaidDate" style="padding:10px;border:1px solid #d1d5db;border-radius:4px;width:100%;">
+        </div>
+      </div>
+
       <label>Kunde / Firma</label>
       <input type="text" id="editKunde">
 
       <label>Kategorie / Zweck</label>
       <input type="text" id="editZweck">
-      
+
+      <label>Typ</label>
+      <select id="editType" style="margin-bottom:0.5rem;">
+        <option value="rechnung">Rechnung</option>
+        <option value="ausgabe">Ausgabe</option>
+        <option value="eingangsrechnung">Eingangsrechnung</option>
+        <option value="buchung">Buchung</option>
+        <option value="angebot">Angebot</option>
+        <option value="auftragsbestaetigung">Auftragsbestätigung</option>
+        <option value="storno">Storno</option>
+        <option value="beleg">Beleg</option>
+        <option value="manuell">Manuell</option>
+        <option value="sonstiges">Sonstiges</option>
+      </select>
+
       <label>Referenz (Rechnungs-Nr)</label>
       <input type="text" id="editRef">
 
       <div style="background:#fffbeb; padding:10px; border-radius:8px; margin-bottom:1rem; border:1px solid #fde68a;">
         <label style="color:#92400e; font-weight:bold;">Brutto-Gesamtbetrag (Forderung in €)</label>
         <input type="number" step="0.01" id="editGesamt" style="margin-bottom:0.5rem;">
-        
+
         <label style="color:#92400e; font-size:0.85rem;">Steuersatz (nur für manuelle Einträge)</label>
-        <select id="editSteuer" style="margin-bottom:0;">
+        <select id="editSteuer" style="margin-bottom:0.5rem;">
           <option value="19">19% MwSt</option>
           <option value="7">7% MwSt</option>
           <option value="0">Ohne MwSt</option>
         </select>
+
+        <label style="color:#92400e; font-size:0.85rem;">Angebot gültig bis (optional)</label>
+        <input type="date" id="editOfferValidUntil" style="margin-bottom:0;">
       </div>
-      
+
       <div style="background:#f9fafb; padding:10px; border-radius:8px; margin-bottom:1rem; border:1px solid #e5e7eb;">
         <label style="color:#111827; font-size:0.85rem; font-weight:bold;">Bereits gezahlte Anzahlung (€)</label>
         <input type="number" step="0.01" id="editAnzGezahlt" style="margin-bottom:0.5rem;">
-        
+
+        <label style="color:#111827; font-size:0.85rem; font-weight:bold;">Datum Anzahlung (Kontoauszug)</label>
+        <input type="date" id="editAnzDatum" style="margin-bottom:0.5rem;">
+
         <label style="color:#111827; font-size:0.85rem; font-weight:bold;">Bereits gezahlter Rest (€)</label>
-        <input type="number" step="0.01" id="editRestGezahlt" style="margin-bottom:0;">
+        <input type="number" step="0.01" id="editRestGezahlt" style="margin-bottom:0.5rem;">
+
+        <label style="color:#111827; font-size:0.85rem; font-weight:bold;">Datum Restzahlung (Kontoauszug)</label>
+        <input type="date" id="editRestDatum" style="margin-bottom:0;">
       </div>
 
       <div class="modal-actions">
@@ -202,186 +426,1228 @@
     const SUPABASE_KEY = 'sb_publishable_cJyOwgz2NXfDiTj7mRUVrQ_VMAMoVdd';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let currentTab = 'offen'; 
-    let allPayments = []; 
+    let currentTab = 'offen';
+    let allPayments = [];
+    let offerFieldAvailable = false;
+    let currentCustomerSearch = '';
+    let currentAngeboteSort = 'validity_asc';
+    let currentOpenSort = 'date_desc';
 
-    // Zahlen schön als deutsche Währung formatieren (15.000,00 €)
     function formatCurrency(number) {
-        return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(number);
+      return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(number || 0));
     }
 
-    function switchTab(tab) {
+    function extractTaggedDate(note, label) {
+  const txt = String(note || '');
+  const m = txt.match(new RegExp(label + '=([0-9]{4}-[0-9]{2}-[0-9]{2})'));
+  return m ? m[1] : '';
+}
+
+function formatDateDE(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d)) return value;
+      return d.toLocaleDateString('de-DE');
+    }
+
+    function tageBis(datum) {
+      if (!datum) return null;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const target = new Date(datum);
+      target.setHours(0,0,0,0);
+      return Math.round((target - today) / 86400000);
+    }
+
+    function angebotStatus(row) {
+      const gültigBis = row.offer_valid_until || null;
+      if (!gültigBis) return '<span class="validity-pill validity-missing">Kein Datum</span>';
+      const diff = tageBis(gültigBis);
+      if (diff < 0) return `<span class="validity-pill validity-expired">Abgelaufen seit ${Math.abs(diff)} Tag(en)</span>`;
+      if (diff <= 3) return `<span class="validity-pill validity-soon">Läuft in ${diff} Tag(en) ab</span>`;
+      return `<span class="validity-pill validity-ok">Gültig (${formatDateDE(gültigBis)})</span>`;
+    }
+
+function zahlungsAmpel(row, offenGesamt, anzOffen, endOffen) {
+  const isAngebot = row.transaction_type === 'angebot';
+  if (isAngebot) {
+    const gültigBis = row.offer_valid_until || null;
+    if (!gültigBis) return { cls: 'status-ampel-grau', text: 'KEIN DATUM' };
+
+    const diff = tageBis(gültigBis);
+    if (diff < 0) return { cls: 'status-ampel-rot', text: 'ABGELAUFEN' };
+    if (diff <= 3) return { cls: 'status-ampel-gelb', text: 'LÄUFT BALD AB' };
+    return { cls: 'status-ampel-gruen', text: 'GÜLTIG' };
+  }
+
+  if (offenGesamt <= 0 || row.status === 'abgeschlossen') {
+    return { cls: 'status-ampel-gruen', text: 'BEZAHLT' };
+  }
+
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+
+  const depositDue = row.deposit_due ? new Date(row.deposit_due) : null;
+  const finalDue = row.final_due ? new Date(row.final_due) : null;
+  if (depositDue) depositDue.setHours(0, 0, 0, 0);
+  if (finalDue) finalDue.setHours(0, 0, 0, 0);
+
+  const teilbezahlt = (Number(row.deposit_paid || 0) + Number(row.final_paid || 0)) > 0;
+
+  if (anzOffen > 0 && depositDue && depositDue < heute) {
+    return { cls: 'status-ampel-rot', text: 'ANZAHLUNG ÜBERFÄLLIG' };
+  }
+
+  if (endOffen > 0 && finalDue && finalDue < heute) {
+    return { cls: 'status-ampel-rot', text: 'REST ÜBERFÄLLIG' };
+  }
+
+  const warnTage = 3;
+  if (anzOffen > 0 && depositDue) {
+    const diff = tageBis(row.deposit_due);
+    if (diff !== null && diff <= warnTage) {
+      return { cls: 'status-ampel-gelb', text: teilbezahlt ? 'TEILBEZAHLT / BALD FÄLLIG' : 'ANZAHLUNG BALD FÄLLIG' };
+    }
+  }
+
+  if (endOffen > 0 && finalDue) {
+    const diff = tageBis(row.final_due);
+    if (diff !== null && diff <= warnTage) {
+      return { cls: 'status-ampel-gelb', text: teilbezahlt ? 'TEILBEZAHLT / BALD FÄLLIG' : 'REST BALD FÄLLIG' };
+    }
+  }
+
+  if (teilbezahlt) {
+    return { cls: 'status-ampel-gelb', text: 'TEILBEZAHLT' };
+  }
+
+  return { cls: 'status-ampel-rot', text: 'OFFEN' };
+}
+
+    function csvWert(value) {
+      if (value === null || value === undefined) return '""';
+      return `"${String(value).replace(/"/g, '""')}"`;
+    }
+
+    function berechneOffen(row) {
+      const total = Number(row.total_amount || 0);
+      const depositPaid = Number(row.deposit_paid || 0);
+      const finalPaid = Number(row.final_paid || 0);
+      return Math.max(0, total - depositPaid - finalPaid);
+    }
+
+    function baueExportDaten(rows) {
+      return (rows || []).map(row => ({
+        Kunde: row.customer_name || '',
+        'E-Mail': row.customer_email || '',
+        Referenz: row.invoice_number || '',
+        Typ: row.transaction_type || '',
+        Richtung: row.cash_flow_direction || '',
+        Status: row.status || '',
+        Gesamtbetrag: Number(row.total_amount || 0),
+        Anzahlungsbetrag: Number(row.deposit_amount || 0),
+        Restbetrag: Number(row.final_amount || 0),
+        'Anzahlung bezahlt': Number(row.deposit_paid || 0),
+        'Rest bezahlt': Number(row.final_paid || 0),
+        Offen: berechneOffen(row),
+        Steuersatz: Number(row.tax_rate || 0),
+        Netto: Number(row.net_amount || 0),
+        'Brutto 19%': Number(row.total_amount_19 || 0),
+        'Brutto 7%': Number(row.total_amount_7 || 0),
+        'MwSt 19%': Number(row.tax_amount_19 || 0),
+        'MwSt 7%': Number(row.tax_amount_7 || 0),
+        'Anzahlung fällig': formatDateDE(row.deposit_due),
+        'Rest fällig': formatDateDE(row.final_due),
+        'Angebot gültig bis': row.offer_valid_until ? formatDateDE(row.offer_valid_until) : '',
+        Notiz: row.note || row.notes || '',
+        'Erstellt am': formatDateDE(row.created_at),
+        'Aktualisiert am': formatDateDE(row.updated_at)
+      }));
+    }
+
+    
+function buildTaxSummaryRows(rows) {
+  const actualIncome = rows.filter(r => {
+    const direction = String(r.cash_flow_direction || r.cashflow_direction || '').toLowerCase();
+    const t = String(r.transaction_type || '').toLowerCase();
+    return !(direction === 'out' || t === 'eingangsrechnung' || t === 'ausgabe');
+  }).reduce((s, r) => s + Math.max(0, Number(r.deposit_paid || 0) + Number(r.final_paid || 0)), 0);
+  const actualExpenses = rows.filter(r => {
+    const direction = String(r.cash_flow_direction || r.cashflow_direction || '').toLowerCase();
+    const t = String(r.transaction_type || '').toLowerCase();
+    return direction === 'out' || t === 'eingangsrechnung' || t === 'ausgabe';
+  }).reduce((s, r) => s + Math.max(0, Number(r.deposit_paid || 0) + Number(r.final_paid || 0)), 0);
+  const expectedIncome = rows.filter(r => {
+    const direction = String(r.cash_flow_direction || r.cashflow_direction || '').toLowerCase();
+    const t = String(r.transaction_type || '').toLowerCase();
+    return !(direction === 'out' || t === 'eingangsrechnung' || t === 'ausgabe');
+  }).reduce((s, r) => s + Math.max(0, Number(r.total_amount || 0) - Number(r.deposit_paid || 0) - Number(r.final_paid || 0)), 0);
+  return [{
+    'Kunde': 'SUMME',
+    'Referenz': '',
+    'Belegreferenz': '',
+    'Beleg-ID': '',
+    'Typ': '',
+    'Status': '',
+    'Tatsächliche Einnahmen': actualIncome,
+    'Tatsächliche Ausgaben': actualExpenses,
+    'Zu erwartende Einnahmen': expectedIncome,
+    'Anzahlung bezahlt': '',
+    'Rest bezahlt': '',
+    'Gesamtbetrag': '',
+    'Anzahlungsbetrag': '',
+    'Restbetrag': '',
+    'Offen': '',
+    'Steuersatz': '',
+    'Netto': '',
+    'Brutto 19%': '',
+    'Brutto 7%': '',
+    'MwSt 19%': '',
+    'MwSt 7%': '',
+    'Anzahlung fällig': '',
+    'Rest fällig': '',
+    'Angebot gültig bis': '',
+    'Belegdaten': '',
+    'Belegtext': '',
+    'Notiz': 'Summenzeile',
+    'Erstellt am': '',
+    'Aktualisiert am': ''
+  }];
+}
+
+
+
+
+function steuerberaterExportRows(rows) {
+  const out = [];
+  (rows || []).forEach(row => {
+    const direction = String(row.cash_flow_direction || row.cashflow_direction || '').toLowerCase();
+    const type = String(row.transaction_type || '').toLowerCase();
+    const paid = Math.max(0, Number(row.deposit_paid || 0) + Number(row.final_paid || 0));
+    const open = Math.max(0, Number(berechneOffen(row) || 0));
+    const total = Number(row.total_amount || 0);
+    const isExpense = direction === 'out' || type === 'eingangsrechnung' || type === 'ausgabe';
+    const isSplitInvoice = (type === 'auftragsbestaetigung' || type === 'rechnung') && Number(row.deposit_paid || 0) > 0 && Number(row.final_paid || 0) > 0;
+    const docDate = formatDateDE(row.document_date || extractTaggedDate(row.note || row.notes, 'Belegdatum') || row.created_at);
+    const dueDate = formatDateDE(row.due_date || extractTaggedDate(row.note || row.notes, 'Fälligkeitsdatum') || row.deposit_due || row.final_due);
+    const paidDate = formatDateDE(row.paid_date || extractTaggedDate(row.note || row.notes, 'BezahltAm') || row.payment_date || row.final_paid_at || row.deposit_paid_at || row.paid_in_at || row.paid_out_at || row.updated_at);
+    const base = {
+      'Kunde': row.customer_name || '',
+      'Referenz': row.invoice_number || '',
+      'Typ': row.transaction_type || '',
+      'Belegdatum': docDate,
+      'Fälligkeitsdatum': dueDate,
+      'Bezahlt am': paidDate,
+      'Steuersatz': Number(row.tax_rate || 0),
+      'Netto': Number(row.net_amount || 0),
+      'Gesamtbetrag': total,
+      'Offen': open,
+      'Status': row.status || '',
+      'Notiz': row.note || row.notes || '',
+      'Erstellt am': formatDateDE(row.created_at),
+      'Aktualisiert am': formatDateDE(row.updated_at)
+    };
+    if (isSplitInvoice) {
+      out.push({ ...base, 'Belegart': 'Anzahlung / AB', 'Zeile': 1, 'Einnahmen': isExpense ? 0 : Number(row.deposit_paid || 0), 'Ausgaben': isExpense ? Number(row.deposit_paid || 0) : 0, 'Anzahlung bezahlt': Number(row.deposit_paid || 0), 'Rest bezahlt': 0, 'Anzahlungsbetrag': Number(row.deposit_amount || 0), 'Restbetrag': 0 });
+      out.push({ ...base, 'Belegart': 'Rechnung / Rest', 'Zeile': 2, 'Einnahmen': isExpense ? 0 : Number(row.final_paid || 0), 'Ausgaben': isExpense ? Number(row.final_paid || 0) : 0, 'Anzahlung bezahlt': 0, 'Rest bezahlt': Number(row.final_paid || 0), 'Anzahlungsbetrag': 0, 'Restbetrag': Number(row.final_amount || 0) });
+    } else {
+      out.push({ ...base, 'Belegart': isExpense ? 'Ausgabe' : 'Einnahme', 'Zeile': 1, 'Einnahmen': isExpense ? 0 : paid, 'Ausgaben': isExpense ? paid : 0, 'Anzahlung bezahlt': Number(row.deposit_paid || 0), 'Rest bezahlt': Number(row.final_paid || 0), 'Anzahlungsbetrag': Number(row.deposit_amount || 0), 'Restbetrag': Number(row.final_amount || 0) });
+    }
+  });
+  return out;
+}
+async function exportTaxAdvisorXLSX() {
+  try {
+    const rows = steuerberaterExportRows(getArchiveVisibleRows());
+    if (!rows.length) return alert('Keine Daten zum Export vorhanden.');
+    const header = [
+      'Kunde',
+      'Referenz',
+      'Typ',
+      'Belegart',
+      'Zeile',
+      'Belegdatum',
+      'Fälligkeitsdatum',
+      'Bezahlt am',
+      'Einnahmen',
+      'Ausgaben',
+      'Offen',
+      'Steuersatz',
+      'Netto',
+      'Gesamtbetrag',
+      'Anzahlung bezahlt',
+      'Rest bezahlt',
+      'Anzahlungsbetrag',
+      'Restbetrag',
+      'Status',
+      'Notiz',
+      'Erstellt am',
+      'Aktualisiert am'
+    ];
+    const normalized = rows.map(r => {
+      const obj = {};
+      header.forEach(h => obj[h] = (r[h] ?? ''));
+      return obj;
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(normalized, { header });
+    ws['!cols'] = header.map(key => ({ wch: Math.max(String(key).length, 14) }));
+    XLSX.utils.book_append_sheet(wb, ws, 'Steuerberater');
+    const heute = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `warnow-moments-steuerberater-${heute}.xlsx`);
+  } catch (err) {
+    alert('Fehler beim Steuerberater-Export: ' + err.message);
+  }
+}
+async function exportPaymentsXLSX() {
+  try {
+    const rows = steuerberaterExportRows(getArchiveVisibleRows());
+    if (!rows.length) return alert('Keine Daten zum Export vorhanden.');
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(key => ({ wch: Math.max(String(key).length, 16) }));
+    XLSX.utils.book_append_sheet(wb, ws, 'Steuerberater');
+    const heute = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `warnow-moments-steuerberater-${heute}.xlsx`);
+  } catch (err) {
+    alert('Fehler beim Excel-Export: ' + err.message);
+  }
+}
+
+function switchTab(tab) {
       currentTab = tab;
       document.getElementById('tabOffen').classList.toggle('active', tab === 'offen');
       document.getElementById('tabArchiv').classList.toggle('active', tab === 'archiv');
-      document.getElementById('quickbar').style.display = (tab === 'archiv') ? 'none' : 'flex';
-      renderTable(); 
-    }
-
-    async function checkSession() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        document.getElementById('loginGate').classList.add('hidden');
-        document.getElementById('appContent').style.display = 'block';
-        loadData();
-      }
-    }
-
-    async function handleLogin() {
-      const email = document.getElementById('loginEmail').value;
-      const pass = document.getElementById('loginPassword').value;
-      const err = document.getElementById('loginError');
-      err.textContent = "Prüfe Login...";
-      const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-      if (error) err.textContent = "Fehler: " + error.message; 
-      else checkSession();
-    }
-
-    async function handleLogout() {
-      await sb.auth.signOut();
-      location.reload();
+      document.getElementById('tabAngebote').classList.toggle('active', tab === 'angebote');
+      document.getElementById('quickbar').style.display = (tab === 'archiv' || tab === 'angebote') ? 'none' : 'flex';
+      document.getElementById('offerBox').style.display = (tab === 'angebote') ? 'block' : 'none';
+      const filterBar = document.getElementById('filterBar');
+      const searchEl = document.getElementById('searchCustomer');
+      const sortEl = document.getElementById('angeboteSort');
+      const openSortEl = document.getElementById('openSort');
+      if (filterBar) filterBar.style.display = (tab === 'offen' || tab === 'angebote' || tab === 'archiv' || tab === 'storno') ? 'flex' : 'none';
+      if (searchEl) { searchEl.style.display = (tab === 'offen' || tab === 'archiv' || tab === 'storno') ? '' : 'none'; searchEl.placeholder = (tab === 'archiv') ? 'Archiv durchsuchen: Kunde, Referenz, Typ, Status...' : 'Kunde, Referenz oder Zweck suchen...'; }
+      if (searchEl) {
+    if (tab === 'archiv') searchEl.placeholder = 'Archiv durchsuchen: Kunde, Referenz, Rechnungsnr...';
+    else searchEl.placeholder = 'Kunde, Referenz oder Zweck suchen...';
+}
+      if (openSortEl) openSortEl.style.display = tab === 'offen' ? '' : 'none';
+      if (sortEl) sortEl.style.display = tab === 'angebote' ? '' : 'none';
+      if (tab === 'angebote') loadAngebotePipeline(); else { currentCustomerSearch = ''; if(searchEl) searchEl.value = ''; loadData(); }
     }
 
     async function loadData() {
-      try {
-        const { data, error } = await sb
-          .from('payments')
-          .select('*')
-          .order('deposit_due', { ascending: true, nullsFirst: false }); 
+  try {
+    const { data: payments, error } = await sb.from("payments").select("*").order("deposit_due", { ascending: true, nullsFirst: false });
+    if (error) throw error;
+    allPayments = payments;
 
-        if (error) throw error;
-        allPayments = data || [];
-        renderTable();
-      } catch (err) { alert("Fehler beim Laden: " + err.message); }
-    }
+    // await syncNewAuftragsbestaetigungen();   ← erstmal auskommentieren
 
-    function renderTable() {
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = '';
-      let sumOffen = 0;
-      let countAnsicht = 0;
+    renderTable();
+  } catch (err) {
+    alert("Fehler beim Laden: " + err.message);
+  }
+}
 
-      allPayments.forEach(row => {
-        let total = Number(row.total_amount || 0);
-        const t19 = Number(row.total_amount_19 || 0);
-        const t7 = Number(row.total_amount_7 || 0);
-        if ((t19 + t7) > total) total = t19 + t7; 
-        
-        const anzForderung = Number(row.deposit_amount || 0);
-        const anzBezahlt = Number(row.deposit_paid || 0);
-        const endForderung = Number(row.final_amount) > 0 ? Number(row.final_amount) : (total - anzForderung);
-        const endBezahlt = Number(row.final_paid || 0);
-        
-        const bezahltGesamt = anzBezahlt + endBezahlt;
-        let offenGesamt = total - bezahltGesamt;
-        if (offenGesamt < 0) offenGesamt = 0;
+async function loadAngebotePipeline() {
+  try {
+    const [{ data: txData, error: txError }, { data: bookingData, error: bookingError }] = await Promise.all([
+      sb.from('commercial_transactions').select('id, booking_id, customer_name, customer_email, offer_number, offer_valid_until, offer_amount_gross, offer_amount_net, tax_rate, total_amount_19, total_amount_7, tax_amount_19, tax_amount_7, deposit_amount, notes, created_at, updated_at, workflow_status, service_date').order('offer_valid_until', { ascending: true, nullsFirst: false }),
+      sb.from('wm_bookings').select('id, status, ref, start_time')
+    ]);
+    if (txError) throw txError;
+    if (bookingError) throw bookingError;
+    const allTx = txData || [];
+    const allBookings = bookingData || [];
+    const bookingsById = new Map(allBookings.map(b => [String(b.id), b]));
+    const openOffers = allTx.filter(row => String(row.workflow_status || '').toLowerCase() === 'angebot_offen');
+    const progressedBookingIds = new Set(allTx.filter(row => String(row.workflow_status || '').toLowerCase() !== 'angebot_offen' && row.booking_id).map(row => String(row.booking_id)));
+    const progressedOfferNumbers = new Set(allTx.filter(row => String(row.workflow_status || '').toLowerCase() !== 'angebot_offen' && row.offer_number).map(row => String(row.offer_number).trim()));
+    const trulyOpenOffers = openOffers.filter(row => {
+      const bookingId = row.booking_id ? String(row.booking_id) : null;
+      const offerNumber = row.offer_number ? String(row.offer_number).trim() : null;
+      if (bookingId && progressedBookingIds.has(bookingId)) return false;
+      if (offerNumber && progressedOfferNumbers.has(offerNumber)) return false;
+      const linkedBooking = bookingId ? bookingsById.get(bookingId) : null;
+      const bookingStatus = String(linkedBooking?.status || '').toLowerCase();
+      if (bookingStatus === 'cancelled' || bookingStatus === 'storniert') return false;
+      return true;
+    });
+    allPayments = trulyOpenOffers.map(row => ({
+      id: row.id, bookingid: row.booking_id || null, customername: row.customer_name || '', customeremail: row.customer_email || '', invoicenumber: row.offer_number || '', transactiontype: 'angebot', cashflowdirection: 'in', status: 'offen', totalamount: Number(row.offer_amount_gross || 0), depositamount: Number(row.deposit_amount || 0), depositpaid: 0, finalamount: Math.max(0, Number(row.offer_amount_gross || 0) - Number(row.deposit_amount || 0)), finalpaid: 0, totalamount19: Number(row.total_amount_19 || 0), totalamount7: Number(row.total_amount_7 || 0), taxamount19: Number(row.tax_amount_19 || 0), taxamount7: Number(row.tax_amount_7 || 0), taxrate: Number(row.tax_rate || 19), netamount: Number(row.offer_amount_net || 0), depositdue: null, finaldue: null, offervaliduntil: row.offer_valid_until || null, note: row.notes || '', createdat: row.created_at || null, updatedat: row.updated_at || null, sourcedocumenttype: 'angebot', referencenumber: row.offer_number || '', commercialtransactionid: row.id, service_date: row.service_date || null, booking_start_time: row.booking_id && bookingsById.get(String(row.booking_id)) ? bookingsById.get(String(row.booking_id)).start_time : null
+    }));
+    offerFieldAvailable = true;
+    renderTable();
+  } catch (err) {
+    alert('Fehler beim Laden der Angebote: ' + err.message);
+  }
+}
 
-        const isErledigt = (offenGesamt <= 0 || row.status === 'abgeschlossen');
-        if (currentTab === 'offen' && isErledigt) return; 
-        if (currentTab === 'archiv' && !isErledigt) return; 
-        
-        countAnsicht++;
-        if (offenGesamt > 0 && row.cash_flow_direction !== 'out') sumOffen += offenGesamt;
+async function syncCommercialTransactionFromPayment(paymentId) {
+  try {
+    const { data: paymentRow, error: paymentError } = await sb.from('payments').select('*').eq('id', paymentId).single();
+    if (paymentError || !paymentRow) return;
+    let txQuery = sb.from('commercial_transactions').select('id').limit(1);
+    if (paymentRow.commercial_transaction_id) txQuery = txQuery.eq('id', paymentRow.commercial_transaction_id);
+    else if (paymentRow.booking_id) txQuery = txQuery.eq('booking_id', paymentRow.booking_id);
+    else if (paymentRow.invoice_number) {
+      const pType = String(paymentRow.transaction_type || '').toLowerCase();
+      if (pType === 'angebot') txQuery = txQuery.eq('offer_number', paymentRow.invoice_number);
+      else if (pType === 'rechnung') txQuery = txQuery.eq('invoice_number', paymentRow.invoice_number);
+      else if (pType === 'buchung' || pType === 'auftragsbestaetigung') txQuery = txQuery.eq('ab_number', paymentRow.invoice_number);
+      else return;
+    } else return;
+    const { data: txRow, error: txError } = await txQuery.maybeSingle();
+    if (txError || !txRow) return;
+    const total = Number(paymentRow.total_amount || 0);
+    const openAmount = Math.max(0, total - Number(paymentRow.deposit_paid || 0) - Number(paymentRow.final_paid || 0));
+    const totalPaid = Number(paymentRow.deposit_paid || 0) + Number(paymentRow.final_paid || 0);
+    const pType = String(paymentRow.transaction_type || '').toLowerCase();
+    let workflowStatus = openAmount <= 0 ? 'bezahlt' : 'teilbezahlt';
+    if (pType === 'angebot') workflowStatus = openAmount <= 0 ? 'angebot_angenommen' : 'angebot_offen';
+    else if (pType === 'rechnung') workflowStatus = openAmount <= 0 ? 'bezahlt' : (totalPaid > 0 ? 'teilbezahlt' : 'rechnung_gestellt');
+    else if (pType === 'buchung' || pType === 'auftragsbestaetigung') workflowStatus = openAmount <= 0 ? 'bezahlt' : (totalPaid > 0 ? 'teilbezahlt' : 'ab_bestaetigt');
+    await sb.from('commercial_transactions').update({ open_amount: openAmount, workflow_status: workflowStatus, updated_at: new Date().toISOString() }).eq('id', txRow.id);
+  } catch (err) {
+    console.warn('syncCommercialTransactionFromPayment fehlgeschlagen', err);
+  }
+}
 
-        const anzFällig = row.deposit_due ? new Date(row.deposit_due).toLocaleDateString('de-DE') : '-';
-        const endFällig = row.final_due ? new Date(row.final_due).toLocaleDateString('de-DE') : '-';
-        
-        let farbe = '';
-        if (row.cash_flow_direction === 'out') {
-            farbe = currentTab === 'archiv' ? 'color: #9ca3af;' : 'color: #991b1b;';
-        }
+async function syncCommercialTransactionFromPayment(paymentId) {
+  try {
+    const { data: paymentRow, error: paymentError } = await sb.from('payments').select('*').eq('id', paymentId).single();
+    if (paymentError || !paymentRow) return;
+    let txQuery = sb.from('commercial_transactions').select('id').limit(1);
+    if (paymentRow.commercial_transaction_id) txQuery = txQuery.eq('id', paymentRow.commercial_transaction_id);
+    else if (paymentRow.booking_id) txQuery = txQuery.eq('booking_id', paymentRow.booking_id);
+    else if (paymentRow.invoice_number) {
+      const pType = String(paymentRow.transaction_type || '').toLowerCase();
+      if (pType === 'angebot') txQuery = txQuery.eq('offer_number', paymentRow.invoice_number);
+      else if (pType === 'rechnung') txQuery = txQuery.eq('invoice_number', paymentRow.invoice_number);
+      else if (pType === 'buchung' || pType === 'auftragsbestaetigung') txQuery = txQuery.eq('ab_number', paymentRow.invoice_number);
+      else return;
+    } else return;
+    const { data: txRow, error: txError } = await txQuery.maybeSingle();
+    if (txError || !txRow) return;
+    const total = Number(paymentRow.total_amount || 0);
+    const openAmount = Math.max(0, total - Number(paymentRow.deposit_paid || 0) - Number(paymentRow.final_paid || 0));
+    const totalPaid = Number(paymentRow.deposit_paid || 0) + Number(paymentRow.final_paid || 0);
+    const pType = String(paymentRow.transaction_type || '').toLowerCase();
+    let workflowStatus = openAmount <= 0 ? 'bezahlt' : 'teilbezahlt';
+    if (pType === 'angebot') workflowStatus = openAmount <= 0 ? 'angebot_angenommen' : 'angebot_offen';
+    else if (pType === 'rechnung') workflowStatus = openAmount <= 0 ? 'bezahlt' : (totalPaid > 0 ? 'teilbezahlt' : 'rechnung_gestellt');
+    else if (pType === 'buchung' || pType === 'auftragsbestaetigung') workflowStatus = openAmount <= 0 ? 'bezahlt' : (totalPaid > 0 ? 'teilbezahlt' : 'ab_bestaetigt');
+    await sb.from('commercial_transactions').update({ open_amount: openAmount, workflow_status: workflowStatus, updated_at: new Date().toISOString() }).eq('id', txRow.id);
+  } catch (err) {
+    console.warn('syncCommercialTransactionFromPayment fehlgeschlagen', err);
+  }
+}
 
-        let anzAnzeige = `<span class="empty-cell">-</span>`;
-        if (row.transaction_type === 'buchung' && anzForderung > 0) {
-            anzAnzeige = formatCurrency(anzForderung);
-        }
+async function syncPaymentsFromCommercialTransactions() {
+  try {
+    const { data: txs, error } = await sb.from('commercial_transactions').select('*');
+    if (error) throw error;
+    for (const tx of (txs || [])) {
+      const bookingId = tx.booking_id || null;
+      const customerName = tx.customer_name || '';
+      const common = {
+        booking_id: bookingId,
+        customer_name: customerName,
+        customer_email: tx.customer_email || null,
+        tax_rate: tx.tax_rate || null,
+        tax_amount: tx.offer_tax_amount || tx.ab_tax_amount || tx.tax_amount_19 || 0,
+        net_amount: tx.offer_amount_net || tx.ab_amount_net || 0,
+        total_amount_19: tx.total_amount_19 || 0,
+        total_amount_7: tx.total_amount_7 || 0,
+        tax_amount_19: tx.tax_amount_19 || 0,
+        tax_amount_7: tx.tax_amount_7 || 0,
+        open_amount: tx.open_amount || 0,
+        status_reason: tx.status_reason || null,
+        archived_at: tx.archived_at || null,
+        commercial_transaction_id: tx.id,
+        source_type: tx.source_type || 'commercial_transaction'
+      };
 
-        let refAnzeige = row.invoice_number ? row.invoice_number : `<span class="empty-cell">-</span>`;
-        
-        let anzeigeZweck = `<span class="empty-cell">-</span>`;
-        if (row.note && row.note.trim() !== '') {
-            anzeigeZweck = row.note;
-        } else if (row.transaction_type === 'buchung') {
-            anzeigeZweck = '<span style="color:#9ca3af;font-size:0.8rem;">Miete</span>';
-        }
+      const candidates = [];
+      if (tx.ab_number) candidates.push({ invoice_number: tx.ab_number, transaction_type: 'auftragsbestaetigung', total_amount: Number(tx.ab_amount_gross || 0), deposit_amount: Number(tx.deposit_amount || 0) || Number(tx.ab_amount_gross || 0) * 0.3333, final_amount: Math.max(0, Number(tx.ab_amount_gross || 0) - (Number(tx.deposit_amount || 0) || Number(tx.ab_amount_gross || 0) * 0.3333)), deposit_due: tx.deposit_due || null, source_document_type: 'auftragsbestaetigung', reference_number: tx.ab_number });
+      if (tx.invoice_number) candidates.push({ invoice_number: tx.invoice_number, transaction_type: 'rechnung', total_amount: Number(tx.invoice_amount_gross || 0), deposit_amount: 0, final_amount: Number(tx.invoice_amount_gross || 0), final_due: tx.invoice_due || null, source_document_type: 'rechnung', reference_number: tx.invoice_number });
+      if (tx.offer_number) candidates.push({ invoice_number: tx.offer_number, transaction_type: 'angebot', total_amount: Number(tx.offer_amount_gross || 0), deposit_amount: 0, final_amount: 0, offer_valid_until: tx.offer_valid_until || null, source_document_type: 'angebot', reference_number: tx.offer_number });
 
-        let offenStyle = "color:red; font-weight:bold; background:#fee2e2; border-radius:4px; text-align:center;";
-        if (offenGesamt <= 0) {
-            offenStyle = "color:#10b981; font-weight:bold; text-align:center;"; 
-        }
-
-        let rowSteuer = "19";
-        if (t7 > 0 && t19 === 0) rowSteuer = "7";
-        if (t7 === 0 && t19 === 0 && row.transaction_type !== 'buchung') rowSteuer = "0";
-
-        let actionBtns = `<button class="action-btn btn-edit" onclick="openEditModal('${row.id}', '${row.customer_name}', '${row.invoice_number}', ${total}, ${anzBezahlt}, ${endBezahlt}, '${row.transaction_type}', '${rowSteuer}', '${row.note || ''}')">✏️ Edit</button>`;
-        let faelligAnzeige = `<span style="color:#4b5563;">${anzFällig}</span>`;
-
-        if (currentTab === 'offen') {
-            if (row.transaction_type === 'buchung') {
-                faelligAnzeige = `Anz: <b>${anzFällig}</b><br><small style="color:#9ca3af;">Rest: ${endFällig}</small>`;
-                const anzOffen = anzForderung - anzBezahlt;
-                const endOffen = endForderung - endBezahlt;
-                
-                if (anzOffen > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${anzOffen}, ${anzBezahlt}, 'Anzahlung')">💰 Anz. (${formatCurrency(anzOffen)})</button>`;
-                if (endOffen > 0) actionBtns += `<button class="action-btn btn-pay-rest" onclick="payPartial('${row.id}', 'final_paid', ${endOffen}, ${endBezahlt}, 'Restbetrag')">💰 Rest (${formatCurrency(endOffen)})</button>`;
-            } else {
-                if (offenGesamt > 0) actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${offenGesamt}, ${anzBezahlt}, 'Rechnung')">💰 Bezahlen (${formatCurrency(offenGesamt)})</button>`;
-            }
+      for (const c of candidates) {
+        if (!c.invoice_number) continue;
+        const { data: exists } = await sb.from('payments').select('id').eq('invoice_number', c.invoice_number).maybeSingle();
+        const payload = {
+          ...common,
+          ...c,
+          note: tx.notes || tx.status_reason || null,
+          source_ref: c.invoice_number,
+          customer_name: customerName,
+          source_document_type: c.source_document_type,
+          reference_number: c.reference_number,
+          transaction_type: c.transaction_type,
+          total_amount: Number(c.total_amount || 0),
+          deposit_amount: Number(c.deposit_amount || 0),
+          final_amount: Number(c.final_amount || 0),
+          deposit_paid: 0,
+          final_paid: 0,
+          cash_flow_direction: 'in'
+        };
+        if (c.transaction_type === 'rechnung') {
+          payload.status = Number(tx.open_amount || 0) <= 0 ? 'abgeschlossen' : 'offen';
+        } else if (c.transaction_type === 'auftragsbestaetigung') {
+          payload.status = tx.workflow_status === 'storniert' ? 'storniert' : (Number(tx.open_amount || 0) <= 0 ? 'abgeschlossen' : 'offen');
         } else {
-            if (row.transaction_type === 'buchung') faelligAnzeige = `Anz: <span style="color:#4b5563;">${anzFällig}</span><br><small style="color:#9ca3af;">Rest: ${endFällig}</small>`;
+          payload.status = 'offen';
         }
-
-        tbody.innerHTML += `
-          <tr style="${farbe}">
-            <td class="col-kunde">${row.customer_name || '<span class="empty-cell">-</span>'}</td>
-            <td class="col-ref">${refAnzeige}</td>
-            <td class="col-zweck">${anzeigeZweck}</td>
-            <td><span style="font-size:0.75rem; font-weight:600; text-transform:uppercase; background:#f3f4f6; color:#4b5563; padding:3px 6px; border-radius:4px; border:1px solid #e5e7eb;">${row.transaction_type}</span></td>
-            <td>${faelligAnzeige}</td>
-            <td class="col-betrag" style="font-weight:bold;">${formatCurrency(total)}</td>
-            <td class="col-anzahlung" style="color:#6b7280; font-family:monospace; font-size:0.85rem;">${anzAnzeige}</td>
-            <td class="col-bezahlt" style="color:#10b981; font-weight:600;">${formatCurrency(bezahltGesamt)}</td>
-            <td class="col-offen" style="${offenStyle}">${formatCurrency(offenGesamt)}</td>
-            <td><span class="status-pill ${getStatusClass(row.status)}">${(row.status || 'offen').toUpperCase()}</span></td>
-            <td style="display:flex; flex-direction:column; justify-content:center; gap:4px; padding-right:10px;">${actionBtns}</td>
-          </tr>
-        `;
-      });
-
-      if (countAnsicht === 0) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:3rem; color:#6b7280; font-style:italic;">Alles erledigt! Keine Einträge in dieser Ansicht.</td></tr>`;
-
-      if (currentTab === 'offen') {
-          document.getElementById('summaryText').textContent = 'Gesamtsumme noch offen (Einnahmen):';
-          document.getElementById('totalOpenAmount').textContent = formatCurrency(sumOffen);
-          document.getElementById('totalOpenAmount').style.color = '#dc2626';
-          document.getElementById('summaryCard').style.display = 'flex';
-      } else {
-          document.getElementById('summaryCard').style.display = 'none'; 
+        if (!exists) {
+          await sb.from('payments').insert(payload);
+        } else {
+          await sb.from('payments').update(payload).eq('id', exists.id);
+        }
       }
     }
+  } catch (err) {
+    console.warn('syncPaymentsFromCommercialTransactions fehlgeschlagen', err);
+  }
+}
+
+// NEU: Sync ABs aus wm_bookings → payments
+async function syncNewAuftragsbestaetigungen() {
+  const { data: bookings, error } = await sb
+    .from('wm_bookings')  // Deine Buchungstabelle
+    .select('id, ref, customer, status, created_at')
+    .eq('status', 'confirmed')
+    .ilike('ref', 'AB-%');  // Nur AB-Referenzen (AB-2026-001)
+
+  if (error) {
+    console.warn('Sync fehlgeschlagen:', error);
+    return;
+  }
+
+  for (const booking of bookings) {
+    // Existiert schon?
+    const { data: existing } = await sb
+      .from('payments')
+      .select('id')
+      .eq('invoice_number', booking.ref)
+      .single();
+
+    if (!existing) {
+      // Neu anlegen
+      const insert = {
+        customer_name: booking.customer || 'Kunde aus AB',
+        invoice_number: booking.ref,
+        transaction_type: 'buchung',
+        note: `Auto-sync AB ${booking.ref}`,
+        total_amount: 0,  // Später via Rechnung setzen
+        deposit_amount: 0,  // Anzahlung (aus AB später)
+        deposit_paid: 0,
+        final_amount: 0,
+        final_paid: 0,
+        status: 'offen',
+        cash_flow_direction: 'in',
+        deposit_due: booking.created_at ? new Date(booking.created_at).toISOString().split('T')[0] : null,
+        created_at: new Date().toISOString()
+      };
+      await sb.from('payments').insert(insert);
+      console.log(`✅ Neue Buchung sync'd: ${booking.ref}`);
+    }
+  }
+}
+
+    
+function isInvoiceLikeNumber(val) {
+  const s = String(val || '').trim().toUpperCase();
+  return /^R(E)?-\d{4}-\d+/i.test(s) || /^RECHNUNG/i.test(s);
+}
+
+function isAbLikeNumber(val) {
+  const s = String(val || '').trim().toUpperCase();
+  return /^AB-\d{4}-\d+/i.test(s) || /^AUFTRAGSBESTAETIGUNG/i.test(s) || /^AUFTRAGSBESTÄTIGUNG/i.test(s);
+}
+
+function calcOpenPostenParts(t) {
+  const total = Number(t.totalamount || 0);
+  const depositAmount = Number(t.depositamount || 0);
+  const depositPaid = Number(t.depositpaid || 0);
+  const finalPaid = Number(t.finalpaid || 0);
+  const openDeposit = Math.max(0, +(depositAmount - depositPaid).toFixed(2));
+  const remainingAfterDeposit = Math.max(0, +(total - depositAmount).toFixed(2));
+  const openFinal = Math.max(0, +(remainingAfterDeposit - finalPaid).toFixed(2));
+  const hasInvoice = isInvoiceLikeNumber(t.rechnungsnummer || t.invoice_number || t.number || '');
+  const hasAB = isAbLikeNumber(t.auftragsbestaetigungsnummer || t.abnummer || t.reference_ab || t.ref || t.number || '');
+  const status = String(t.transactiontype || t.type || t.status || '').toLowerCase();
+  const isOffer = status.includes('angebot');
+  const isBooking = status.includes('buchung') || status.includes('abbestaetigt') || status.includes('auftrags');
+  return {
+    openDeposit,
+    openFinal,
+    hasInvoice,
+    hasAB,
+    isOffer,
+    isBooking,
+    shouldShowInOpenPosten: !isOffer && ((hasInvoice && (openDeposit > 0 || openFinal > 0)) || (!hasInvoice && (hasAB || isBooking) && openDeposit > 0))
+  };
+}
+
+function pick(obj, ...keys) {
+  for (const key of keys) {
+    if (obj && obj[key] !== undefined && obj[key] !== null) return obj[key];
+  }
+  return null;
+}
+
+function getLeistungsdatum(row) {
+  const raw = pick(row, 'service_date', 'servicedate', 'booking_start_time', 'start_time');
+  if (!raw) return '';
+  const s = String(raw);
+  return formatDateDE(s.includes('T') ? s.split('T')[0] : s);
+}
+
+function buildTableHead() {
+  const thead = document.getElementById('mainTableHead');
+  if (!thead) return;
+  if (currentTab === 'angebote') {
+    thead.innerHTML = '<tr><th>Kunde</th><th>Referenz</th><th>Zweck</th><th>Leistungsdatum</th><th>Erstellt</th><th>Gesamt</th><th>Angebot gültig bis</th><th>Aktionen</th></tr>';
+  } else if (currentTab === 'archiv') {
+    thead.innerHTML = '<tr><th>Kunde</th><th>Referenz</th><th>Zweck</th><th>Typ</th><th>Belegdatum</th><th>Fälligkeitsdatum</th><th>Bezahlt am</th><th>Gesamt</th><th>Anzahlung</th><th>Restbetrag</th><th>Status</th><th>Ampel</th><th>Aktionen</th></tr>';
+  } else {
+    thead.innerHTML = '<tr><th>Kunde</th><th>Referenz</th><th>Zweck</th><th>Typ</th><th>Fälligkeit</th><th>Gesamt</th><th>Anzahlung</th><th>Restbetrag</th><th>Status</th><th>Ampel</th><th>Aktionen</th></tr>';
+  }
+}
+
+function customerMatches(row) {
+  if ((currentTab !== 'offen' && currentTab !== 'archiv') || !currentCustomerSearch) return true;
+  const searchTerms = currentCustomerSearch.split(' ').filter(t => t.length > 0);
+  const hay = [
+    pick(row, 'customername', 'customer_name'),
+    pick(row, 'invoicenumber', 'invoice_number', 'offernumber', 'offer_number'),
+    pick(row, 'referencenumber', 'reference_number'),
+    pick(row, 'note', 'notes', 'export_note', 'exportnote'),
+    pick(row, 'transactiontype', 'transaction_type', 'type'),
+    pick(row, 'status'),
+    pick(row, 'depositdue', 'deposit_due', 'finaldue', 'final_due'),
+    pick(row, 'document_date', 'paid_date')
+  ].filter(Boolean).join(' ').toLowerCase();
+  return searchTerms.every(term => hay.includes(term));
+}
+
+function sortRowsForCurrentTab(rows) {
+  const out = [...rows];
+  const ts = (value) => { if (!value) return Number.MAX_SAFE_INTEGER; const d = new Date(value); return isNaN(d.getTime()) ? Number.MAX_SAFE_INTEGER : d.getTime(); };
+  if (currentTab === 'angebote') {
+    out.sort((a, b) => {
+      if (currentAngeboteSort === 'validity_desc') return ts(pick(b, 'offervaliduntil', 'offer_valid_until')) - ts(pick(a, 'offervaliduntil', 'offer_valid_until'));
+      if (currentAngeboteSort === 'customer_asc') return String(pick(a, 'customername', 'customer_name') || '').localeCompare(String(pick(b, 'customername', 'customer_name') || ''), 'de');
+      if (currentAngeboteSort === 'amount_desc') return Number(pick(b, 'totalamount', 'total_amount') || 0) - Number(pick(a, 'totalamount', 'total_amount') || 0);
+      return ts(pick(a, 'offervaliduntil', 'offer_valid_until')) - ts(pick(b, 'offervaliduntil', 'offer_valid_until'));
+    });
+  } else {
+    out.sort((a, b) => ts(pick(a, 'depositdue', 'deposit_due', 'finaldue', 'final_due', 'createdat', 'created_at')) - ts(pick(b, 'depositdue', 'deposit_due', 'finaldue', 'final_due', 'createdat', 'created_at')));
+  }
+  return out;
+}
+
+
+function setArchiveTypeFilter(archiveTypeFilter) {
+  if (typeof renderTable === 'function') renderTable();
+}
+
+
+let archiveTypeFilter = 'alle';
+function setArchiveTypeFilter(value) {
+  archiveTypeFilter = value || 'alle';
+  try { localStorage.setItem('archiveTypeFilter', archiveTypeFilter); } catch (e) {}
+  const labels = { alle:'Alle Typen', eingangsrechnung:'Nur Eingangsrechnungen', ausgabe:'Nur Ausgaben', rechnung:'Nur Rechnungen', angebot:'Nur Angebote', auftragsbestaetigung:'Nur Auftragsbestätigungen', buchung:'Nur Buchungen' };
+  const labelEl = document.getElementById('archiveTypeFilterLabel');
+  if (labelEl) labelEl.textContent = labels[archiveTypeFilter] || '';
+  if (typeof refreshArchiveViewDirect === 'function') refreshArchiveViewDirect(); else renderTable();
+}
+function applyArchiveFilter() {
+  const el = document.getElementById('typeFilter');
+  const value = el ? el.value : 'alle';
+  setArchiveTypeFilter(value);
+  refreshArchiveViewDirect();
+}
+function resetArchiveFilter() {
+  const el = document.getElementById('typeFilter');
+  if (el) el.value = 'alle';
+  setArchiveTypeFilter('alle');
+}
+
+function forceArchiveFilterRender() {
+  if (typeof renderTable === 'function') {
+    try { renderTable(); } catch (e) { console.error(e); }
+  }
+}
+
+
+
+function getArchiveVisibleRows() {
+  const baseRows = Array.isArray(allPayments) ? allPayments.slice() : [];
+  const rows = baseRows.filter(r => String(r.transactiontype || r.transaction_type || r.transactionType || '').toLowerCase() !== '');
+  const typeFilterValue = (archiveTypeFilter || 'alle').toLowerCase();
+  if (currentTab === 'archiv' && typeFilterValue !== 'alle') {
+    return rows.filter(row => {
+      const typ = String(row.transactiontype || row.transaction_type || row.transactionType || '').toLowerCase();
+      if (typeFilterValue === 'eingangsrechnung') return typ === 'eingangsrechnung' || typ === 'eingangs rechnung';
+      if (typeFilterValue === 'auftragsbestaetigung') return typ === 'auftragsbestaetigung' || typ === 'auftragsbestätigung';
+      if (typeFilterValue === 'ausgabe') return typ === 'ausgabe';
+      if (typeFilterValue === 'rechnung') return typ === 'rechnung';
+      if (typeFilterValue === 'angebot') return typ === 'angebot';
+      if (typeFilterValue === 'buchung') return typ === 'buchung';
+      return typ === typeFilterValue;
+    });
+  }
+  return rows;
+}
+
+function refreshArchiveViewDirect() {
+  try {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const typeFilterValue = (archiveTypeFilter || 'alle').toLowerCase();
+    let rows = Array.isArray(allPayments) ? allPayments.slice() : [];
+    if (typeFilterValue !== 'alle') {
+      rows = rows.filter(row => {
+        const typ = String(row.transactiontype || row.transaction_type || row.transactionType || '').toLowerCase();
+        if (typeFilterValue === 'eingangsrechnung') return typ === 'eingangsrechnung' || typ === 'eingangs rechnung';
+        if (typeFilterValue === 'auftragsbestaetigung') return typ === 'auftragsbestaetigung' || typ === 'auftragsbestätigung';
+        if (typeFilterValue === 'ausgabe') return typ === 'ausgabe';
+        if (typeFilterValue === 'rechnung') return typ === 'rechnung';
+        if (typeFilterValue === 'angebot') return typ === 'angebot';
+        if (typeFilterValue === 'buchung') return typ === 'buchung';
+        return typ === typeFilterValue;
+      });
+    }
+    const mode = currentTab || 'archiv';
+    if (mode !== 'archiv') {
+      renderTable();
+      return;
+    }
+    if (typeof renderTable === 'function') renderTable();
+  } catch (e) { console.error(e); }
+}
+
+function restoreArchiveTypeFilter() {
+  try { archiveTypeFilter = localStorage.getItem('archiveTypeFilter') || 'alle'; } catch (e) { archiveTypeFilter = 'alle'; }
+  const el = document.getElementById('typeFilter');
+  if (el) el.value = archiveTypeFilter;
+  const labels = { alle:'Alle Typen', eingangsrechnung:'Nur Eingangsrechnungen', ausgabe:'Nur Ausgaben', rechnung:'Nur Rechnungen', angebot:'Nur Angebote', auftragsbestaetigung:'Nur Auftragsbestätigungen', buchung:'Nur Buchungen' };
+  const labelEl = document.getElementById('archiveTypeFilterLabel');
+  if (labelEl) labelEl.textContent = labels[archiveTypeFilter] || '';
+}
+
+
+
+function updateFinanceSummary() {
+  const card = document.getElementById('summaryCard');
+  const textEl = document.getElementById('summaryText');
+  const amountEl = document.getElementById('totalOpenAmount');
+  if (!card || !textEl || !amountEl) return;
+  if (currentTab !== 'archiv' && currentTab !== 'storno') return;
+
+  const rows = Array.isArray(allPayments) ? allPayments : [];
+  let incomeCents = 0, expenseCents = 0, expectedCents = 0;
+
+  const cents = (v) => Math.round((Number(v) || 0) * 100);
+  const money = (c) => c / 100;
+
+  rows.forEach(row => {
+    const type = String(pick(row, 'transactiontype', 'transaction_type', 'type') || '').toLowerCase();
+    const status = String(pick(row, 'status') || '').toLowerCase();
+    const noteText = String(pick(row, 'note', 'notes', 'export_note', 'exportnote') || '').toLowerCase();
+    const cashflowDirection = String(pick(row, 'cashflowdirection', 'cash_flow_direction') || '').toLowerCase();
+    const total = Number(pick(row, 'totalamount', 'total_amount', 'offeramountgross', 'offer_amount_gross') || 0);
+    const depositAmount = Number(pick(row, 'depositamount', 'deposit_amount') || 0);
+    const finalAmountRaw = pick(row, 'finalamount', 'final_amount');
+    const finalAmount = finalAmountRaw !== null ? Number(finalAmountRaw || 0) : Math.max(0, total - depositAmount);
+    const depositPaid = Number(pick(row, 'depositpaid', 'deposit_paid') || 0);
+    const finalPaid = Number(pick(row, 'finalpaid', 'final_paid') || 0);
+    const paid = Math.max(0, depositPaid + finalPaid);
+    const isOffer = type === 'angebot';
+    const isExpense = cashflowDirection === 'out' || type === 'eingangsrechnung' || type === 'eingangs rechnung' || type === 'ausgabe';
+    const isStorno = status === 'storniert' || status === 'neutralisiert' || noteText.includes('storno');
+    const isNullBeleg = total === 0 && type !== 'rechnung' && type !== 'auftragsbestaetigung';
+    const anzOffen = Math.max(0, depositAmount - depositPaid);
+    const restBasis = finalAmount > 0 ? finalAmount : Math.max(0, total - depositAmount);
+    const endOffen = Math.max(0, restBasis - finalPaid);
+    const offenGesamt = Math.max(0, total - paid);
+    const isFulfilled = (type === 'auftragsbestaetigung' || type === 'buchung') ? (anzOffen <= 0 && endOffen <= 0) : (offenGesamt <= 0);
+    const isPaidOrRelevant = (paid > 0) || status === 'abgeschlossen' || status === 'bezahlt' || status === 'erledigt';
+
+    if (isStorno || isOffer || isNullBeleg) return;
+
+    if (type === 'auftragsbestaetigung' || type === 'rechnung') {
+      if (paid > 0) {
+        if (isExpense) expenseCents += cents(paid);
+        else incomeCents += cents(paid);
+      }
+      if (offenGesamt > 0 || (type === 'auftragsbestaetigung' && (anzOffen > 0 || endOffen > 0))) {
+        expectedCents += cents(offenGesamt > 0 ? offenGesamt : Math.max(0, anzOffen + endOffen));
+      }
+      return;
+    }
+
+    if (type === 'buchung') {
+      if (paid > 0) {
+        if (isExpense) expenseCents += cents(paid);
+        else incomeCents += cents(paid);
+      }
+      if (!isFulfilled) expectedCents += cents(Math.max(0, anzOffen + endOffen));
+      return;
+    }
+
+    if (isPaidOrRelevant) {
+      if (isExpense) expenseCents += cents(paid > 0 ? paid : total);
+      else incomeCents += cents(paid > 0 ? paid : total);
+    }
+  });
+
+  const income = money(incomeCents);
+  const expense = money(expenseCents);
+  const profit = money(incomeCents - expenseCents);
+  textEl.textContent = 'Gesamtübersicht Geldfluss';
+  amountEl.innerHTML = `<span style="color:#10b981;">+${formatCurrency(income)}</span> <span style="color:#6b7280; font-size:1.2rem; margin:0 10px; font-weight:normal;">|</span> <span style="color:#dc2626;">-${formatCurrency(expense)}</span> <span style="color:#6b7280; font-size:1.2rem; margin:0 10px; font-weight:normal;">|</span> <span style="color:${profit >= 0 ? '#2563eb' : '#dc2626'};">${profit >= 0 ? '+' : ''}${formatCurrency(profit)}</span>`;
+  card.style.display = 'flex';
+}
+
+/* removed recon panel */
+function updateReconciliationPanel() { }
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  if (!tbody) return;
+  buildTableHead();
+  tbody.innerHTML = '';
+  let sumOffen = 0, offeneABSumme = 0, offeneRechnungSumme = 0, countAnsicht = 0, angeboteOffen = 0, angeboteBald = 0, angeboteAbgelaufen = 0, archivEinnahmen = 0, archivAusgaben = 0, stornoGebuehren = 0, stornoRueckzahlungen = 0;
+  const baseRows = Array.isArray(allPayments) ? allPayments : [];
+  
+  // Deduplicate exact invoice numbers for 'rechnung' to avoid showing duplicate rows from DB anomalies
+  const seenInvoices = new Map();
+  const dedupedBaseRows = [];
+  const archiveFilterValue = (currentTab === 'archiv' && archiveTypeFilter) ? String(archiveTypeFilter).toLowerCase() : 'alle';
+
+
+  for (const row of baseRows) {
+    let rawInvNum = pick(row, 'invoicenumber', 'invoice_number', 'offernumber', 'offer_number');
+    const tType = String(pick(row, 'transactiontype', 'transaction_type', 'type') || '').toLowerCase();
+
+    if (rawInvNum && tType === 'rechnung') {
+      let invNum = String(rawInvNum).trim().toUpperCase();
+      // Normalize old 'R-' format to 'RE-' to catch replacements like R-2026-002 -> RE-2026-002
+      if (invNum.startsWith('R-')) {
+        invNum = 'RE-' + invNum.substring(2);
+      }
+
+      const cName = String(pick(row, 'customername', 'customer_name') || '').toLowerCase().trim();
+
+      // If the invoice number is a highly specific Warnow Moments format (e.g., RE-2026-001), 
+      // it is globally unique. We can deduplicate purely on the invoice number.
+      // If it is something generic, we append the customer name to the key so we don't accidentally merge different customers.
+      const isSpecificFormat = /^RE-\d{4}-\d+/i.test(invNum);
+      let dedupKey = invNum;
+
+      // If it's not a specific format, we must include the name to separate things like "Rechnung 1" for A and "Rechnung 1" for B
+      if (!isSpecificFormat) {
+         dedupKey = invNum + '###' + cName;
+      }
+
+      if (seenInvoices.has(dedupKey)) {
+        const existing = seenInvoices.get(dedupKey);
+        const existingName = String(pick(existing, 'customername', 'customer_name') || '').toLowerCase().trim();
+
+        // If it IS a specific format but the names are completely different (no overlap), 
+        // it might actually be two different valid bills that just got mis-numbered? 
+        // No, in Warnow Moments, R-2026-002 "VMF Daniel Ledwa" was replaced by RE-2026-002 "Daniel Ledwa".
+        // They are the same.
+
+        const existingProgress = existing.status !== 'offen' ? 1 : 0;
+        const currentProgress = String(row.status || '').toLowerCase() !== 'offen' ? 1 : 0;
+
+        const isCurrentRE = String(rawInvNum || '').trim().toUpperCase().startsWith('RE-');
+        const isExistingRE = String(pick(existing, 'invoicenumber', 'invoice_number', 'offernumber', 'offer_number') || '').trim().toUpperCase().startsWith('RE-');
+
+        let replace = false;
+
+        if (isCurrentRE && !isExistingRE) {
+            replace = true; // RE- overrides R-
+        } else if (!isCurrentRE && isExistingRE) {
+            replace = false;
+        } else {
+            // If both same prefix format, check progress or date
+            if (currentProgress > existingProgress) {
+                replace = true;
+            } else if (currentProgress === existingProgress) {
+                // If same progress, prefer the one with a booking_id or larger ID/newer date. 
+                const tsC = new Date(pick(row, 'createdat', 'created_at') || 0).getTime();
+                const tsE = new Date(pick(existing, 'createdat', 'created_at') || 0).getTime();
+                if (tsC > tsE) replace = true;
+            }
+        }
+
+        if (replace) {
+           seenInvoices.set(dedupKey, row);
+           const idx = dedupedBaseRows.findIndex(r => r.id === existing.id);
+           if(idx !== -1) dedupedBaseRows[idx] = row;
+        }
+        continue;
+      } else {
+        seenInvoices.set(dedupKey, row);
+      }
+    }
+    dedupedBaseRows.push(row);
+  }
+
+  let preparedBaseRows = dedupedBaseRows.filter(customerMatches);
+  if (currentTab === 'archiv' && archiveFilterValue !== 'alle') {
+    preparedBaseRows = preparedBaseRows.filter(row => {
+      const typ = String(pick(row, 'transactiontype', 'transaction_type', 'type') || '').toLowerCase();
+      if (archiveFilterValue === 'eingangsrechnung') return typ === 'eingangsrechnung' || typ === 'eingangs rechnung';
+      if (archiveFilterValue === 'auftragsbestaetigung') return typ === 'auftragsbestaetigung' || typ === 'auftragsbestätigung';
+      if (archiveFilterValue === 'ausgabe') return typ === 'ausgabe';
+      if (archiveFilterValue === 'rechnung') return typ === 'rechnung';
+      if (archiveFilterValue === 'angebot') return typ === 'angebot';
+      if (archiveFilterValue === 'buchung') return typ === 'buchung';
+      return typ === archiveFilterValue;
+    });
+  }
+  let preparedRows = sortRowsForCurrentTab(preparedBaseRows);
+
+
+  if (currentTab === 'archiv') {
+    const archiveRows = preparedRows || [];
+    const isExpenseRow = (r) => {
+      const direction = String(pick(r, 'cashflowdirection', 'cash_flow_direction') || '').toLowerCase();
+      const t = String(pick(r, 'transactiontype', 'transaction_type', 'type') || '').toLowerCase();
+      return direction === 'out' || t === 'eingangsrechnung' || t === 'ausgabe';
+    };
+    const isIncomeRow = (r) => !isExpenseRow(r);
+    const actualIncome = archiveRows.filter(isIncomeRow).reduce((s, r) => s + Math.max(0, Number(pick(r, 'depositpaid', 'deposit_paid') || 0) + Number(pick(r, 'finalpaid', 'final_paid') || 0)), 0);
+    const actualExpenses = archiveRows.filter(isExpenseRow).reduce((s, r) => s + Math.max(0, Number(pick(r, 'depositpaid', 'deposit_paid') || 0) + Number(pick(r, 'finalpaid', 'final_paid') || 0)), 0);
+    const expectedIncome = archiveRows.filter(isIncomeRow).reduce((s, r) => s + Math.max(0, Number(pick(r, 'totalamount', 'total_amount') || 0) - Number(pick(r, 'depositpaid', 'deposit_paid') || 0) - Number(pick(r, 'finalpaid', 'final_paid') || 0)), 0);
+    const tsCard = document.getElementById('typeSummaryCard');
+    const tsIncome = document.getElementById('typeSummaryIncome');
+    const tsExpense = document.getElementById('typeSummaryExpense');
+    const tsExpected = document.getElementById('typeSummaryExpected');
+    const selected = String(document.getElementById('typeFilter')?.value || 'alle');
+    if (tsCard && tsIncome && tsExpense && tsExpected) {
+      tsCard.style.display = selected === 'alle' ? 'none' : 'flex';
+      tsIncome.textContent = formatCurrency(actualIncome);
+      tsExpense.textContent = formatCurrency(actualExpenses);
+      tsExpected.textContent = formatCurrency(expectedIncome);
+    }
+  } else {
+    const tsCard = document.getElementById('typeSummaryCard');
+    if (tsCard) tsCard.style.display = 'none';
+  }
+
+  if (currentTab === 'offen') {
+    const byDate = (r) => {
+      const d = pick(r, 'depositdue', 'deposit_due', 'finaldue', 'final_due', 'createdat', 'created_at');
+      const t = d ? new Date(String(d)).getTime() : 0;
+      return isNaN(t) ? 0 : t;
+    };
+    const byAmount = (r) => Number(pick(r, 'totalamount', 'total_amount') || 0);
+    const byCustomer = (r) => String(pick(r, 'customername', 'customer_name') || '').toLowerCase();
+    if (currentOpenSort === 'date_asc') preparedRows = preparedRows.sort((a,b)=>byDate(a)-byDate(b));
+    else if (currentOpenSort === 'date_desc') preparedRows = preparedRows.sort((a,b)=>byDate(b)-byDate(a));
+    else if (currentOpenSort === 'amount_asc') preparedRows = preparedRows.sort((a,b)=>byAmount(a)-byAmount(b));
+    else if (currentOpenSort === 'amount_desc') preparedRows = preparedRows.sort((a,b)=>byAmount(b)-byAmount(a));
+    else if (currentOpenSort === 'customer_asc') preparedRows = preparedRows.sort((a,b)=>byCustomer(a).localeCompare(byCustomer(b), 'de'));
+    else if (currentOpenSort === 'customer_desc') preparedRows = preparedRows.sort((a,b)=>byCustomer(b).localeCompare(byCustomer(a), 'de'));
+  }
+
+
+  preparedRows.forEach(row => {
+    const bookingId = pick(row, 'bookingid', 'booking_id');
+    const transactionType = String(pick(row, 'transactiontype', 'transaction_type', 'type') || '').toLowerCase();
+    const customerName = pick(row, 'customername', 'customer_name') || '';
+    const invoiceNumber = pick(row, 'invoicenumber', 'invoice_number', 'offernumber', 'offer_number') || '';
+    const noteText = pick(row, 'note', 'notes') || '';
+    const cashflowDirection = String(pick(row, 'cashflowdirection', 'cash_flow_direction') || 'in').toLowerCase();
+    const total = Number(pick(row, 'totalamount', 'total_amount', 'offeramountgross', 'offer_amount_gross') || 0);
+    const depositAmount = Number(pick(row, 'depositamount', 'deposit_amount') || 0);
+    const depositPaid = Number(pick(row, 'depositpaid', 'deposit_paid') || 0);
+    const finalAmountRaw = pick(row, 'finalamount', 'final_amount');
+    const finalAmount = finalAmountRaw !== null ? Number(finalAmountRaw || 0) : Math.max(0, total - depositAmount);
+    const finalPaid = Number(pick(row, 'finalpaid', 'final_paid') || 0);
+    const depositDue = pick(row, 'depositdue', 'deposit_due', 'offerdate', 'offer_date');
+    const finalDue = pick(row, 'finaldue', 'final_due');
+    const offerValidUntil = pick(row, 'offervaliduntil', 'offer_valid_until');
+    const createdAt = pick(row, 'createdat', 'created_at');
+    const status = String(pick(row, 'status') || 'offen').toLowerCase();
+    const statusReason = String(pick(row, 'status_reason', 'statusreason') || '').toLowerCase();
+
+    // Filtering logic to hide unnecessary documents
+    const hasInvoiceForBooking = bookingId && baseRows.some(p => String(pick(p, 'bookingid', 'booking_id') || '') === String(bookingId) && String(pick(p, 'transactiontype', 'transaction_type') || '').toLowerCase() === 'rechnung');
+    const hasInvoiceForReference = invoiceNumber && transactionType === 'auftragsbestaetigung' && baseRows.some(p => String(pick(p, 'transactiontype', 'transaction_type') || '').toLowerCase() === 'rechnung' && String(pick(p, 'referencenumber', 'reference_number') || '') === String(invoiceNumber));
+    const hasABForBooking = bookingId && baseRows.some(p => String(pick(p, 'bookingid', 'booking_id') || '') === String(bookingId) && String(pick(p, 'transactiontype', 'transaction_type') || '').toLowerCase() === 'auftragsbestaetigung');
+
+    // Hide pure "buchung" if there is an AB or Invoice. 
+    // Wait, the user said: "nur Buchungen die noch gar keine AB haben oder Rechnung. Ich will dort nur sehen, wenn was bezahlt werden muss."
+    // Actually, pure bookings shouldn't show up in "Offene Posten" unless they actively require payment without an AB/Invoice.
+    // If it's a 'buchung' and total == 0, hide it.
+    if (transactionType === 'buchung' && (hasInvoiceForBooking || hasABForBooking || total <= 0)) return;
+    if (transactionType === 'auftragsbestaetigung' && (hasInvoiceForBooking || hasInvoiceForReference)) return;
+
+    const isAngebot = transactionType === 'angebot';
+    const bezahltGesamt = depositPaid + finalPaid;
+    const offenGesamt = Math.max(0, total - bezahltGesamt);
+    const anzOffen = Math.max(0, depositAmount - depositPaid);
+    const restBasis = finalAmount > 0 ? finalAmount : Math.max(0, total - depositAmount);
+    const endOffen = Math.max(0, restBasis - finalPaid);
+    const isNullBeleg = total === 0 && transactionType !== 'rechnung' && transactionType !== 'auftragsbestaetigung';
+    const hasPaidDate = !!pick(row, 'paid_in_at', 'paid_out_at');
+    const isFulfilled = (transactionType === 'auftragsbestaetigung' || transactionType === 'buchung') ? (anzOffen <= 0 && endOffen <= 0) : (offenGesamt <= 0);
+    const isErledigt = !isAngebot && !isNullBeleg && (isFulfilled || status === 'abgeschlossen' || status === 'bezahlt' || status === 'neutralisiert' || status === 'storniert');
+
+    const isStornoEntry = status === 'storniert' || status === 'neutralisiert' || statusReason.includes('storno') || String(noteText || '').toLowerCase().includes('storno') || String(pick(row, 'export_note', 'exportnote') || '').toLowerCase().includes('storno');
+    if (currentTab === 'storno') {
+      if (!isStornoEntry) return;
+    } else {
+      if (currentTab === 'offen' && (isErledigt || isAngebot || isStornoEntry)) return;
+      if (currentTab === 'archiv' && (!isErledigt || isAngebot || isStornoEntry)) return;
+      if (currentTab === 'angebote' && !isAngebot) return;
+      if (currentTab === 'archiv' && total === 0 && bezahltGesamt === 0 && !noteText && !invoiceNumber) return;
+    }
+
+    countAnsicht++;
+    if (currentTab === 'offen' && cashflowDirection !== 'out' && offenGesamt > 0) {
+      sumOffen += offenGesamt;
+      if (transactionType === 'auftragsbestaetigung' || transactionType === 'auftragsbestätigung') offeneABSumme += offenGesamt;
+      if (transactionType === 'rechnung') offeneRechnungSumme += offenGesamt;
+    }
+    if (currentTab === 'archiv') {
+      const isStorno = (status === 'storniert' || status === 'neutralisiert');
+      if (!isStorno) {
+        let actualPaid = Math.max(0, Number(pick(row, 'depositpaid', 'deposit_paid') || 0) + Number(pick(row, 'finalpaid', 'final_paid') || 0));
+        let val = actualPaid > 0 ? actualPaid : 0;
+
+        // Wenn Beleg erledigt/abgeschlossen/bezahlt ist, aber keine Zahlbeträge erfasst wurden, setze Gesamtbetrag an
+        if (actualPaid === 0 && (isErledigt || status === 'abgeschlossen' || status === 'bezahlt' || status === 'erledigt')) {
+           val = total; 
+        }
+
+        if (cashflowDirection === 'out') archivAusgaben += val;
+        else if (cashflowDirection === 'in' || cashflowDirection === '') archivEinnahmen += val;
+      }
+    }
+    if (currentTab === 'storno' || isStornoEntry) {
+      const rawFee = Number((String(noteText || '').match(/Gebühr=([0-9]+(?:\.[0-9]+)?)/) || [])[1] || 0);
+      const rawRefund = Number((String(noteText || '').match(/Rückzahlung=([0-9]+(?:\.[0-9]+)?)/) || [])[1] || 0);
+      stornoGebuehren += rawFee;
+      stornoRueckzahlungen += rawRefund;
+    }
+    if (isAngebot) { const diff = offerValidUntil ? tageBis(offerValidUntil) : null; angeboteOffen++; if (diff !== null && diff < 0) angeboteAbgelaufen++; else if (diff !== null && diff <= 3) angeboteBald++; }
+
+    let rowStyle = ''; if (cashflowDirection === 'out') rowStyle = currentTab === 'archiv' ? 'color:#9ca3af;' : 'color:#991b1b;'; if (isAngebot) { const diff = offerValidUntil ? tageBis(offerValidUntil) : null; if (diff !== null && diff < 0) rowStyle = 'background:#fff1f2;color:#991b1b;'; else if (diff !== null && diff <= 3) rowStyle = 'background:#fffbeb;'; else rowStyle = 'background:#faf5ff;'; }
+
+    const refAnzeige = invoiceNumber || '<span class="empty-cell">-</span>';
+    let anzeigeZweck = '<span class="empty-cell">-</span>'; const noteClean = String(noteText || '').trim(); if (noteClean) anzeigeZweck = noteClean; else if (transactionType === 'buchung') anzeigeZweck = '<span style="color:#9ca3af;font-size:0.8rem;">Miete</span>'; else anzeigeZweck = '<span style="color:#9ca3af;font-style:italic;">Kein Zweck</span>';
+
+    const angebotZelle = isAngebot ? angebotStatus({ offer_valid_until: offerValidUntil }) : '<span class="empty-cell">-</span>';
+    const isStornoEntryLocal = status === 'storniert' || status === 'neutralisiert' || statusReason.includes('storno') || String(noteText || '').toLowerCase().includes('storno') || String(pick(row, 'export_note', 'exportnote') || '').toLowerCase().includes('storno');
+    let ampel;
+    if (isStornoEntryLocal) {
+      ampel = { cls: 'status-ampel-rot', text: 'STORNO' };
+    } else {
+      ampel = zahlungsAmpel({ ...row, transactiontype: transactionType, depositdue: depositDue, finaldue: finalDue, offer_valid_until: offerValidUntil, depositpaid: depositPaid, finalpaid: finalPaid, status }, offenGesamt, anzOffen, endOffen);
+    }
+    let dotClass = 'grau'; if (ampel.cls.includes('rot')) dotClass = 'rot'; else if (ampel.cls.includes('gelb')) dotClass = 'gelb'; else if (ampel.cls.includes('gruen')) dotClass = 'gruen';
+    const ampelHtml = `<span class="status-traffic"><span class="status-dot ${dotClass}"></span><span>${ampel.text}</span></span>`;
+    let statusLabel = status;
+    if (status === 'storniert' || status === 'neutralisiert') statusLabel = 'storniert';
+    const statusHtml = isAngebot ? '<span class="empty-cell">-</span>' : `<span class="status-pill ${isStornoEntryLocal ? 'status-offen' : getStatusClass(status)}">${isStornoEntryLocal ? 'storniert' : statusLabel}</span>`;
+
+    // Cleaned up Anzeige for Anzahlung and Rest to avoid duplicates
+    let anzahlungAnzeige = '<span class="empty-cell">-</span>';
+    const depositRelated = ['auftragsbestaetigung','buchung','angebot','rechnung'];
+    const showDeposit = depositRelated.includes(transactionType) && cashflowDirection !== 'out';
+    if (showDeposit || (depositPaid > 0 && cashflowDirection !== 'out')) {
+       anzahlungAnzeige = `
+         <div style="font-weight:600;">Soll: ${formatCurrency(showDeposit ? depositAmount : 0)}</div>
+         <div style="font-size:0.75rem;color:#10b981;">Ist: ${formatCurrency(showDeposit ? depositPaid : 0)}</div>
+         <div style="font-size:0.75rem;color:${anzOffen > 0 && showDeposit ? '#dc2626' : '#6b7280'}; font-weight:bold;">Offen: ${formatCurrency(showDeposit ? anzOffen : 0)}</div>
+       `;
+    }
+
+    const restAnzeige = `
+      <div style="font-weight:600;">Soll: ${formatCurrency(restBasis)}</div>
+      <div style="font-size:0.75rem;color:#10b981;">Ist: ${formatCurrency(finalPaid)}</div>
+      <div style="font-size:0.75rem;color:${endOffen > 0 ? '#dc2626' : '#6b7280'}; font-weight:bold;">Offen: ${formatCurrency(endOffen)}</div>
+    `;
+
+    let rowSteuer = 19; const t19 = Number(pick(row, 'totalamount19', 'total_amount_19') || 0); const t7 = Number(pick(row, 'totalamount7', 'total_amount_7') || 0); if (t7 > 0 && t19 === 0) rowSteuer = 7; if (t7 === 0 && t19 === 0 && transactionType !== 'buchung') rowSteuer = 0;
+
+    let actionBtns = `<div class="actions-compact">`;
+    actionBtns += `<button class="action-btn btn-edit" onclick="openEditModal('${row.id}', ${JSON.stringify(customerName).replace(/"/g,"&quot;")}, ${JSON.stringify(invoiceNumber).replace(/"/g,"&quot;")}, ${JSON.stringify(total)}, ${JSON.stringify(depositPaid)}, ${JSON.stringify(finalPaid)}, ${JSON.stringify(transactionType).replace(/"/g,"&quot;")}, ${JSON.stringify(rowSteuer)}, ${JSON.stringify(noteText).replace(/"/g,"&quot;")}, ${JSON.stringify(offerValidUntil || '').replace(/"/g,"&quot;")})">Edit</button>`;
+    if (transactionType === 'auftragsbestaetigung' || transactionType === 'buchung' || status === 'storniert' || status === 'neutralisiert') {
+      actionBtns += `<button class="action-btn" style="background:#991b1b;" onclick="openStornoModal('${row.id}', ${JSON.stringify(depositPaid + finalPaid)})">Storno</button>`;
+    }
+
+    let faelligAnzeige = `<span style="color:#4b5563;">${depositDue ? formatDateDE(depositDue) : '-'}</span>`;
+    if (currentTab === 'offen') { 
+      if (transactionType === 'buchung' || transactionType === 'auftragsbestaetigung') faelligAnzeige = `Anz. <b>${depositDue ? formatDateDE(depositDue) : '-'}</b><br><small style="color:#9ca3af;">Rest ${finalDue ? formatDateDE(finalDue) : '-'}</small>`; 
+      else if (transactionType === 'rechnung') faelligAnzeige = `<b>${finalDue ? formatDateDE(finalDue) : (depositDue ? formatDateDE(depositDue) : '-')}</b>`; 
+
+      if (anzOffen > 0) { 
+        actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'deposit_paid', ${anzOffen}, ${depositPaid}, 'Anzahlung')">Anz. ${formatCurrency(anzOffen)}</button>`; 
+        actionBtns += `<button class="action-btn" style="background:#7c3aed;" onclick="markPaymentOnly('${row.id}', 'deposit_paid', ${depositAmount}, '${endOffen > 0 ? 'teilbezahlt' : 'abgeschlossen'}', 'Anzahlung')">✓ Anz.</button>`; 
+      } 
+      if (endOffen > 0 && anzOffen <= 0) { 
+        actionBtns += `<button class="action-btn btn-pay-rest" onclick="payPartial('${row.id}', 'final_paid', ${endOffen}, ${finalPaid}, 'Restbetrag')">Rest ${formatCurrency(endOffen)}</button>`; 
+        actionBtns += `<button class="action-btn" style="background:#0f766e;" onclick="markPaymentOnly('${row.id}', 'final_paid', ${restBasis}, 'abgeschlossen', 'Restbetrag')">✓ Rest</button>`; 
+      } else if (endOffen > 0) {
+        actionBtns += `<button class="action-btn btn-pay-rest" style="opacity: 0.5" title="Anzahlung noch offen" onclick="alert('Bitte zuerst die Anzahlung verbuchen.')">Rest ${formatCurrency(endOffen)}</button>`; 
+      }
+
+      if (anzOffen <= 0 && offenGesamt > 0 && transactionType === 'rechnung') {
+        actionBtns += `<button class="action-btn btn-pay" onclick="payPartial('${row.id}', 'final_paid', ${offenGesamt}, ${finalPaid}, 'Zahlung')">Bezahlen</button>`; 
+      }
+    } else if (currentTab === 'archiv') { 
+      if (transactionType === 'buchung' || transactionType === 'auftragsbestaetigung') faelligAnzeige = `Anz. <span style="color:#4b5563;">${depositDue ? formatDateDE(depositDue) : '-'}</span><br><small style="color:#9ca3af;">Rest ${finalDue ? formatDateDE(finalDue) : '-'}</small>`; 
+    } else if (currentTab === 'angebote') {
+      faelligAnzeige = createdAt ? formatDateDE(createdAt) : '-';
+    }
+    actionBtns += `</div>`;
+
+    if (currentTab === 'angebote') { 
+      const leistungsdatumAnzeige = getLeistungsdatum(row) || '<span class="empty-cell">-</span>'; 
+      tbody.innerHTML += `<tr style="${rowStyle}"><td class="col-kunde">${customerName || '<span class="empty-cell">-</span>'}</td><td class="col-ref">${refAnzeige}</td><td class="col-zweck" style="max-width:220px; white-space:normal; overflow:hidden; text-overflow:ellipsis; font-size:0.88rem; line-height:1.2;">${anzeigeZweck}</td><td>${leistungsdatumAnzeige}</td><td>${faelligAnzeige}</td><td class="col-betrag" style="font-weight:bold;">${formatCurrency(total)}</td><td>${angebotZelle}</td><td class="col-actions">${actionBtns}</td></tr>`; 
+    } else { 
+      tbody.innerHTML += `<tr style="${rowStyle}"><td class="col-kunde">${customerName || '<span class="empty-cell">-</span>'}</td><td class="col-ref">${refAnzeige}</td><td class="col-zweck" style="max-width:220px; white-space:normal; overflow:hidden; text-overflow:ellipsis; font-size:0.88rem; line-height:1.2;">${anzeigeZweck}</td><td><span style="font-size:0.75rem; font-weight:600; text-transform:uppercase; background:#f3f4f6; color:#4b5563; padding:3px 6px; border-radius:4px; border:1px solid #e5e7eb;">${transactionType}</span></td><td>${faelligAnzeige}</td><td class="col-betrag" style="font-weight:bold;">${formatCurrency(total)}</td><td class="col-anzahlung">${anzahlungAnzeige}</td><td class="col-bezahlt">${restAnzeige}</td><td>${statusHtml}</td><td>${ampelHtml}</td><td class="col-actions">${actionBtns}</td></tr>`; 
+    }
+  });
+
+  if (countAnsicht === 0) { const colspan = currentTab === 'angebote' ? 8 : 11; tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:3rem; color:#6b7280; font-style:italic;">Keine Einträge in dieser Ansicht vorhanden.</td></tr>`; }
+
+  if (currentTab === 'offen') { 
+    document.getElementById('summaryText').innerHTML = `Offene Posten gesamt<br><span style="font-size:0.95rem; color:#475569; font-weight:600;">ABs offen: ${formatCurrency(offeneABSumme)} &nbsp;|&nbsp; Rechnungen offen: ${formatCurrency(offeneRechnungSumme)}</span>`; 
+    document.getElementById('totalOpenAmount').textContent = formatCurrency(sumOffen); 
+    document.getElementById('totalOpenAmount').style.color = '#dc2626'; 
+    document.getElementById('summaryCard').style.display = 'flex'; 
+  }
+  else if (currentTab === 'angebote') { 
+    const angeboteRows = preparedRows.filter(p => String(pick(p, 'transactiontype', 'transaction_type') || '').toLowerCase() === 'angebot');
+    const angeboteSumme = angeboteRows.reduce((sum, p) => sum + Number(pick(p, 'totalamount', 'total_amount', 'offeramountgross', 'offer_amount_gross') || 0), 0); 
+    document.getElementById('summaryText').innerHTML = `Angebote offen<br><span style="font-size:0.95rem; color:#475569; font-weight:600;">Angebote: ${angeboteOffen} &nbsp;|&nbsp; Summe: ${formatCurrency(angeboteSumme)}</span>`; 
+    document.getElementById('totalOpenAmount').textContent = formatCurrency(angeboteSumme); 
+    document.getElementById('totalOpenAmount').style.color = '#7c3aed'; 
+    document.getElementById('summaryCard').style.display = 'flex'; 
+  }
+  else if (currentTab === 'archiv') { 
+    document.getElementById('summaryText').textContent = 'Gesamtübersicht Geldfluss'; 
+    const gewinn = archivEinnahmen - archivAusgaben;
+    document.getElementById('totalOpenAmount').innerHTML = `<span style="color:#10b981;">+${formatCurrency(archivEinnahmen)}</span> <span style="color:#6b7280; font-size:1.2rem; margin:0 10px; font-weight:normal;">|</span> <span style="color:#dc2626;">-${formatCurrency(archivAusgaben)}</span> <span style="color:#6b7280; font-size:1.2rem; margin:0 10px; font-weight:normal;">|</span> <span style="color:${gewinn >= 0 ? '#10b981' : '#dc2626'};">${gewinn >= 0 ? '+' : ''}${formatCurrency(gewinn)}</span>`; 
+    document.getElementById('summaryCard').style.display = 'flex'; 
+  } else if (currentTab === 'storno') {
+    document.getElementById('summaryText').textContent = 'Storno / Ausfall (Gebühren | Rückzahlungen)';
+    document.getElementById('totalOpenAmount').innerHTML = `<span style="color:#dc2626;">-${formatCurrency(stornoGebuehren)}</span> <span style="color:#6b7280; font-size:1.2rem; margin:0 10px; font-weight:normal;">|</span> <span style="color:#2563eb;">-${formatCurrency(stornoRueckzahlungen)}</span>`;
+    document.getElementById('summaryCard').style.display = 'flex';
+  }
+  else document.getElementById('summaryCard').style.display = 'none';
+  if (currentTab === 'archiv' || currentTab === 'storno') updateFinanceSummary();
+  updateReconciliationPanel();
+}
 
     function getStatusClass(status) {
-      if(status === 'abgeschlossen') return 'status-abgeschlossen';
-      if(status === 'teilbezahlt') return 'status-teilbezahlt';
+      if (status === 'abgeschlossen') return 'status-abgeschlossen';
+      if (status === 'teilbezahlt') return 'status-teilbezahlt';
       return 'status-offen';
     }
 
-    async function payPartial(id, dbField, offenerBetrag, bisherGezahlt, title) {
-      let input = prompt(`Forderung: ${title}\nNoch offen: ${formatCurrency(offenerBetrag)}\n\nWie viel € hat der Kunde JETZT überwiesen?`, offenerBetrag.toFixed(2));
-      if (input === null || input.trim() === '') return; 
-      
-      let gezahltNeu = parseFloat(input.replace(',', '.'));
-      if (isNaN(gezahltNeu) || gezahltNeu <= 0) { alert("Bitte eine gültige Zahl eingeben."); return; }
+    function closePaymentModal() {
+      document.getElementById('paymentModal').style.display = 'none';
+    }
 
-      const totalBezahltFürDiesenPosten = bisherGezahlt + gezahltNeu;
-      const newStatus = (gezahltNeu >= offenerBetrag) ? (dbField === 'final_paid' || title === 'Rechnung' ? 'abgeschlossen' : 'teilbezahlt') : 'teilbezahlt';
+    function payPartial(id, dbField, offenerBetrag, bisherGezahlt, title) {
+      document.getElementById('payModalTitle').innerText = `Teilzahlung: ${title}`;
+      document.getElementById('payModalAmount').placeholder = 'Gesamtbetrag oder Teilbetrag';
+      document.getElementById('payModalAmountGroup').style.display = 'flex';
+      document.getElementById('payModalAmount').value = offenerBetrag.toFixed(2);
+      document.getElementById('payModalDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('payModalId').value = id;
+      document.getElementById('payModalDbField').value = dbField;
+      document.getElementById('payModalOffenerBetrag').value = offenerBetrag;
+      document.getElementById('payModalBisherGezahlt').value = bisherGezahlt;
+      document.getElementById('payModalIsFull').value = 'false';
+      document.getElementById('paymentModal').style.display = 'flex';
+    }
 
-      try {
-        const { error } = await sb.from('payments').update({ [dbField]: totalBezahltFürDiesenPosten, status: newStatus }).eq('id', id);
-        if(error) throw error;
-        loadData(); 
-      } catch(err) { alert("Fehler beim Speichern: " + err.message); }
+    function markPaymentOnly(id, dbField, targetValue, newStatus, label) {
+      document.getElementById('payModalTitle').innerText = `100% Bezahlt: ${label}`;
+      document.getElementById('payModalAmount').placeholder = 'Voller offener Betrag';
+      document.getElementById('payModalAmountGroup').style.display = 'none';
+      document.getElementById('payModalAmount').value = targetValue;
+      document.getElementById('payModalDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('payModalId').value = id;
+      document.getElementById('payModalDbField').value = dbField;
+      document.getElementById('payModalOffenerBetrag').value = targetValue;
+      document.getElementById('payModalIsFull').value = newStatus;
+      document.getElementById('paymentModal').style.display = 'flex';
+    }
+
+    async function savePaymentModal() {
+      const id = document.getElementById('payModalId').value;
+      const amountEl = document.getElementById('payModalAmount');
+      const dateVal = document.getElementById('payModalDate').value;
+      const isFullStatus = document.getElementById('payModalIsFull').value;
+
+      if (!dateVal) return alert('Bitte ein Zahlungsdatum angeben.');
+
+      (async () => {
+        try {
+          const { data: p, error: selErr } = await sb.from('payments').select('deposit_amount, deposit_paid, final_amount, final_paid, total_amount, cash_flow_direction').eq('id', id).maybeSingle();
+          if (selErr) throw selErr;
+          if (!p) return alert('Zahlung nicht gefunden.');
+
+          const dir = p.cash_flow_direction === 'out' ? 'out' : 'in';
+          const timestampField = dir === 'out' ? 'paid_out_at' : 'paid_in_at';
+
+          let updateData = { [timestampField]: dateVal };
+          const totalAmount = Number(p.total_amount || 0);
+          const depositAmount = Number(p.deposit_amount || 0);
+          let depositPaid = Number(p.deposit_paid || 0);
+          let finalPaid = Number(p.final_paid || 0);
+          const finalAmount = Number(p.final_amount !== null ? p.final_amount : Math.max(0, totalAmount - depositAmount));
+
+          let entered = parseFloat(amountEl.value || 0);
+          if (isNaN(entered) || entered <= 0) return alert('Bitte einen gültigen Betrag eingeben.');
+
+          const currentPaid = depositPaid + finalPaid;
+          const openTotal = Math.max(0, totalAmount - currentPaid);
+          if (entered > openTotal) entered = openTotal;
+
+          const depositOpen = Math.max(0, depositAmount - depositPaid);
+          const depositPart = Math.min(entered, depositOpen);
+          depositPaid = +(depositPaid + depositPart).toFixed(2);
+          const rest = +(entered - depositPart).toFixed(2);
+          finalPaid = +(finalPaid + rest).toFixed(2);
+
+          const openAfter = Math.max(0, totalAmount - depositPaid - finalPaid);
+          const finalOpenAfter = Math.max(0, finalAmount - finalPaid);
+
+          let newStatus = 'teilbezahlt';
+          if (openAfter <= 0) newStatus = 'abgeschlossen';
+          if (depositAmount === 0 && openAfter <= 0) newStatus = 'abgeschlossen';
+          if (depositPaid >= depositAmount && finalPaid >= finalAmount && totalAmount > 0) newStatus = 'abgeschlossen';
+
+          updateData.deposit_paid = depositPaid;
+          updateData.final_paid = finalPaid;
+          updateData.status = newStatus;
+
+        const { error } = await sb.from('payments').update(updateData).eq('id', id);
+          if (error) throw error;
+
+          await syncCommercialTransactionFromPayment(id);
+          closePaymentModal();
+          loadData();
+        } catch (err) {
+          alert('Fehler beim Speichern: ' + err.message);
+        }
+      })();
     }
 
     async function addPayment() {
@@ -392,77 +1658,195 @@
       const steuer = document.getElementById('newSteuer').value;
       const dateVal = document.getElementById('newDate').value;
       const betrag = parseFloat(document.getElementById('newBetrag').value);
+      const paidDateEl = document.getElementById('newPaidDate');
+      const paidDateVal = paidDateEl ? paidDateEl.value : '';
 
-      if(!kunde || !ref || isNaN(betrag)) { alert("Bitte Kunde, Referenz und Betrag ausfüllen."); return; }
+      if (!kunde || isNaN(betrag)) return alert('Bitte mindestens Kunde und Betrag ausfüllen.');
 
       let net = betrag, tax19 = 0, tax7 = 0, tot19 = 0, tot7 = 0;
-      if (steuer === '19') { net = betrag / 1.19; tax19 = betrag - net; tot19 = betrag; } 
+      if (steuer === '19') { net = betrag / 1.19; tax19 = betrag - net; tot19 = betrag; }
       else if (steuer === '7') { net = betrag / 1.07; tax7 = betrag - net; tot7 = betrag; }
 
       const fälligDatum = dateVal ? dateVal : new Date().toISOString().split('T')[0];
-      const dir = (typ === 'ausgabe') ? 'out' : 'in';
+      const isOut = (typ === 'ausgabe' || typ === 'eingangsrechnung');
+      const dir = isOut ? 'out' : 'in';
+      const isPaid = !!paidDateVal;
 
       try {
-        const { error } = await sb.from('payments').insert([{
-          customer_name: kunde, invoice_number: ref, transaction_type: typ, note: zweck,
-          total_amount: betrag, deposit_amount: betrag, deposit_paid: 0,
-          final_amount: 0, final_paid: 0,
-          total_amount_19: tot19, total_amount_7: tot7,
-          tax_amount_19: tax19, tax_amount_7: tax7, net_amount: net,
-          status: 'offen', cash_flow_direction: dir, deposit_due: fälligDatum
-        }]);
+        // For direct income/expense entries: if paid date exists, mark fully paid.
+        const depositAmount = (typ === 'angebot') ? 0 : betrag;
+        const finalAmount = 0;
+        const dueDateVal = document.getElementById('newDueDate').value;
+        const payload = {
+          customer_name: kunde,
+          invoice_number: ref,
+          transaction_type: typ,
+          note: zweck,
+          total_amount: betrag,
+          deposit_amount: depositAmount,
+          deposit_paid: isPaid ? depositAmount : 0,
+          final_amount: finalAmount,
+          final_paid: 0,
+          total_amount_19: tot19,
+          total_amount_7: tot7,
+          tax_amount_19: tax19,
+          tax_amount_7: tax7,
+          net_amount: net,
+          tax_rate: Number(steuer),
+          status: isPaid ? 'abgeschlossen' : 'offen',
+          cash_flow_direction: dir,
+          deposit_due: dueDateVal || fälligDatum,
+          document_date: dateVal || null,
+          due_date: dueDateVal || fälligDatum || null,
+          paid_date: paidDateVal || null
+        };
 
+        if (isPaid) {
+          if (isOut) payload.paid_out_at = paidDateVal;
+          else payload.paid_in_at = paidDateVal;
+        }
+
+        if (offerFieldAvailable && typ === 'angebot') {
+          const gültigBis = prompt('Bis wann ist das Angebot gültig? (JJJJ-MM-TT)', fälligDatum);
+          if (gültigBis) payload.offer_valid_until = gültigBis;
+        }
+
+        const { error } = await sb.from('payments').insert([payload]);
         if (error) throw error;
-        
-        document.getElementById('newKunde').value = ''; document.getElementById('newRef').value = '';
-        document.getElementById('newZweck').value = ''; document.getElementById('newBetrag').value = ''; 
+        if (paidDateEl) paidDateEl.value = '';
+        document.getElementById('newKunde').value = '';
+        document.getElementById('newRef').value = '';
+        document.getElementById('newZweck').value = '';
+        document.getElementById('newBetrag').value = '';
         document.getElementById('newDate').value = '';
+        document.getElementById('newDueDate').value = '';
         loadData();
-      } catch(err) { alert("Insert Fehler: " + err.message); }
+      } catch (err) {
+        alert('Fehler beim Speichern: ' + err.message);
+      }
     }
 
-    function openEditModal(id, kunde, ref, gesamt, anzBezahlt, endBezahlt, typ, steuer, zweck) {
+    function openStornoModal(id, currentFee) {
+      document.getElementById('stornoId').value = id;
+      document.getElementById('stornoDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('stornoReason').value = '';
+      document.getElementById('stornoFee').value = currentFee || '';
+      document.getElementById('stornoRefund').value = '';
+      document.getElementById('stornoModal').style.display = 'flex';
+    }
+
+    function closeStornoModal() {
+      document.getElementById('stornoModal').style.display = 'none';
+    }
+
+    async function saveStornoModal() {
+      const id = document.getElementById('stornoId').value;
+      const stornoDate = document.getElementById('stornoDate').value;
+      const stornoReason = document.getElementById('stornoReason').value.trim();
+      const stornoFee = parseFloat(document.getElementById('stornoFee').value || 0);
+      const stornoRefund = parseFloat(document.getElementById('stornoRefund').value || 0);
+      if (!stornoDate) return alert('Bitte ein Storno-Datum angeben.');
+      try {
+        const { data: p, error: selErr } = await sb.from('payments').select('*').eq('id', id).maybeSingle();
+        if (selErr) throw selErr;
+        if (!p) return alert('Eintrag nicht gefunden.');
+        const total = Number(p.total_amount || 0);
+        const depositAmount = Number(p.deposit_amount || 0);
+        const depositPaid = Number(p.deposit_paid || 0);
+        const finalPaid = Number(p.final_paid || 0);
+        const paidTotal = depositPaid + finalPaid;
+        const fee = Math.max(0, Math.min(stornoFee, paidTotal));
+        const refund = Math.max(0, Math.min(stornoRefund, paidTotal - fee));
+        const status = 'storniert';
+        const { error } = await sb.from('payments').update({
+          status,
+          status_reason: stornoReason || 'Storno / Ausfall',
+          notes: [p.notes || '', `STORNO: Gebühr=${fee.toFixed(2)}, Rückzahlung=${refund.toFixed(2)}`].filter(Boolean).join(' | '),
+          archived_at: stornoDate,
+          updated_at: new Date().toISOString(),
+          paid_in_at: null,
+          paid_out_at: null,
+          export_note: `STORNO | Gebühr=${fee.toFixed(2)} | Rückzahlung=${refund.toFixed(2)}`
+        }).eq('id', id);
+        if (error) throw error;
+        await syncCommercialTransactionFromPayment(id);
+        closeStornoModal();
+        loadData();
+      } catch (err) {
+        alert('Fehler beim Buchen des Stornos: ' + err.message);
+      }
+    }
+
+    function openEditModal(id, kunde, ref, gesamt, anzBezahlt, endBezahlt, typ, steuer, zweck, offerValidUntil) {
       document.getElementById('editId').value = id;
-      document.getElementById('editOriginalType').value = typ;
-      document.getElementById('editGesamt').value = gesamt; 
+      const row = (Array.isArray(allPayments) ? allPayments : []).find(r => String(r.id) === String(id)) || null;
+      window.__currentEditRow = row;
+      document.getElementById('editOriginalType').value = normalizeEditType(typ); const et = document.getElementById('editType'); if (et) et.value = normalizeEditType(typ);
+      document.getElementById('editGesamt').value = gesamt;
       document.getElementById('editKunde').value = kunde;
       document.getElementById('editZweck').value = (zweck === 'null' || zweck === 'undefined') ? '' : zweck;
       document.getElementById('editRef').value = (ref === 'null' || ref === 'undefined') ? '' : ref;
       document.getElementById('editAnzGezahlt').value = anzBezahlt;
       document.getElementById('editRestGezahlt').value = endBezahlt;
-      
+      document.getElementById('editOfferValidUntil').value = offerValidUntil || '';
+      document.getElementById('editOfferValidUntil').disabled = !offerFieldAvailable;
+      document.getElementById('editDocumentDate').value = row ? (row.document_date || extractTaggedDate(row.note || row.notes, 'Belegdatum') || '') : '';
+      document.getElementById('editDueDate').value = row ? (row.due_date || extractTaggedDate(row.note || row.notes, 'Fälligkeitsdatum') || row.deposit_due || row.final_due || '') : '';
+      document.getElementById('editPaidDate').value = row ? (row.paid_date || extractTaggedDate(row.note || row.notes, 'BezahltAm') || row.payment_date || row.paid_in_at || row.paid_out_at || '') : '';
+      const dateFromNote = (label) => extractTaggedDate(document.getElementById('editZweck').value || '', label) || extractTaggedDate(document.getElementById('editRef').value || '', label);
+      document.getElementById('editDocumentDate').value = (window.__currentEditRow && (window.__currentEditRow.document_date || extractTaggedDate(window.__currentEditRow.note || window.__currentEditRow.notes, 'Belegdatum'))) || '';
+      document.getElementById('editDueDate').value = (window.__currentEditRow && (window.__currentEditRow.due_date || extractTaggedDate(window.__currentEditRow.note || window.__currentEditRow.notes, 'Fälligkeitsdatum') || window.__currentEditRow.deposit_due || window.__currentEditRow.final_due)) || '';
+      document.getElementById('editPaidDate').value = (window.__currentEditRow && (window.__currentEditRow.paid_date || extractTaggedDate(window.__currentEditRow.note || window.__currentEditRow.notes, 'BezahltAm') || window.__currentEditRow.payment_date || window.__currentEditRow.paid_in_at || window.__currentEditRow.paid_out_at)) || '';
+      const isABorRechnung = typ === 'auftragsbestaetigung' || typ === 'rechnung';
+      const anzDatumEl = document.getElementById('editAnzDatum');
+      const restDatumEl = document.getElementById('editRestDatum');
+      if (anzDatumEl) anzDatumEl.style.display = isABorRechnung ? '' : 'none';
+      if (restDatumEl) restDatumEl.style.display = isABorRechnung ? '' : 'none';
+
       const steuerSelect = document.getElementById('editSteuer');
       if (typ === 'buchung') {
-          steuerSelect.disabled = true;
-          steuerSelect.title = "Steuern bei Buchungen werden automatisch berechnet.";
+        steuerSelect.disabled = true;
+        steuerSelect.title = 'Steuern bei Buchungen werden automatisch berechnet.';
       } else {
-          steuerSelect.disabled = false;
-          steuerSelect.value = steuer;
+        steuerSelect.disabled = false;
+        steuerSelect.value = steuer;
       }
-      
+
+      window.__currentEditRow = window.__currentEditRow || null;
       document.getElementById('editModal').style.display = 'flex';
     }
 
-    function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
 
     async function deletePayment() {
       const id = document.getElementById('editId').value;
       const ref = document.getElementById('editRef').value;
       const confirmDelete = confirm(`Bist du sicher, dass du den Eintrag "${ref}" komplett löschen möchtest?\n\nDies kann nicht rückgängig gemacht werden.`);
-      
       if (!confirmDelete) return;
-
       try {
         const { error } = await sb.from('payments').delete().eq('id', id);
-        if(error) throw error;
+        if (error) throw error;
+        await syncCommercialTransactionFromPayment(id);
         closeEditModal();
         loadData();
-      } catch(err) { alert("Fehler beim Löschen: " + err.message); }
+      } catch (err) {
+        alert('Fehler beim Löschen: ' + err.message);
+      }
     }
 
-    async function saveEdit() {
+    function normalizeEditType(t) {
+  const v = String(t || '').trim().toLowerCase();
+  if (v === 'eingangsrechnung' || v === 'eingangs rechnung' || v === 'eingangs-rechnung' || v === 'input invoice') return 'eingangsrechnung';
+  if (v === 'ausgabe' || v === 'expense') return 'ausgabe';
+  if (v === 'rechnung' || v === 'invoice') return 'rechnung';
+  return v || 'sonstiges';
+}
+
+function saveEdit() {
       const id = document.getElementById('editId').value;
-      const typ = document.getElementById('editOriginalType').value;
+      const et = document.getElementById('editType'); const typ = normalizeEditType((et && et.value) ? et.value : document.getElementById('editOriginalType').value);
       const total = parseFloat(document.getElementById('editGesamt').value) || 0;
       const kunde = document.getElementById('editKunde').value;
       const zweck = document.getElementById('editZweck').value;
@@ -470,36 +1854,123 @@
       const anzGezahlt = parseFloat(document.getElementById('editAnzGezahlt').value) || 0;
       const endGezahlt = parseFloat(document.getElementById('editRestGezahlt').value) || 0;
       const steuer = document.getElementById('editSteuer').value;
+      const offerValidUntil = document.getElementById('editOfferValidUntil').value;
+      const anzDatumEl = document.getElementById('editAnzDatum');
+      const restDatumEl = document.getElementById('editRestDatum');
+      const anzDatum = anzDatumEl ? anzDatumEl.value || '' : '';
+      const restDatum = restDatumEl ? restDatumEl.value || '' : '';
 
       let neuerStatus = 'offen';
       if ((anzGezahlt + endGezahlt) >= total && total > 0) neuerStatus = 'abgeschlossen';
       else if ((anzGezahlt + endGezahlt) > 0) neuerStatus = 'teilbezahlt';
 
       let updateData = {
-          customer_name: kunde, invoice_number: ref, note: zweck,
-          total_amount: total, deposit_paid: anzGezahlt, final_paid: endGezahlt, status: neuerStatus
+        customer_name: kunde,
+        invoice_number: ref,
+        transaction_type: typ,
+        note: zweck,
+        total_amount: total,
+        deposit_paid: anzGezahlt,
+        final_paid: endGezahlt,
+        status: neuerStatus,
+        document_date: document.getElementById('editDocumentDate').value || null,
+        due_date: document.getElementById('editDueDate').value || null,
+        paid_date: document.getElementById('editPaidDate').value || null
       };
 
+      if (offerFieldAvailable) updateData.offer_valid_until = offerValidUntil || null;
+
       if (typ !== 'buchung') {
-          updateData.deposit_amount = total; 
-          let net = total, tax19 = 0, tax7 = 0, tot19 = 0, tot7 = 0;
-          if (steuer === '19') { net = total / 1.19; tax19 = total - net; tot19 = total; } 
-          else if (steuer === '7') { net = total / 1.07; tax7 = total - net; tot7 = total; }
-          
-          updateData.total_amount_19 = tot19; updateData.total_amount_7 = tot7;
-          updateData.tax_amount_19 = tax19; updateData.tax_amount_7 = tax7;
-          updateData.net_amount = net;
+        updateData.deposit_amount = typ === 'angebot' ? 0 : total;
+        let net = total, tax19 = 0, tax7 = 0, tot19 = 0, tot7 = 0;
+        if (steuer === '19') { net = total / 1.19; tax19 = total - net; tot19 = total; }
+        else if (steuer === '7') { net = total / 1.07; tax7 = total - net; tot7 = total; }
+        updateData.total_amount_19 = tot19;
+        updateData.total_amount_7 = tot7;
+        updateData.tax_amount_19 = tax19;
+        updateData.tax_amount_7 = tax7;
+        updateData.net_amount = net;
       }
 
       try {
-        const { error } = await sb.from('payments').update(updateData).eq('id', id);
-        if(error) throw error;
-        closeEditModal();
-        loadData();
-      } catch(err) { alert("Fehler: " + err.message); }
+        if (anzDatum) updateData.paid_in_at = anzDatum;
+        if (restDatum) updateData.paid_out_at = restDatum;
+        sb.from('payments').update(updateData).eq('id', id)
+          .then(({ error }) => {
+            if (error) throw error;
+            return syncCommercialTransactionFromPayment(id);
+          })
+          .then(() => {
+            closeEditModal();
+            loadData();
+          })
+          .catch((err) => {
+            alert('Fehler: ' + err.message);
+          });
+      } catch (err) {
+        alert('Fehler: ' + err.message);
+      }
     }
 
-    document.addEventListener("DOMContentLoaded", () => { checkSession(); });
+    function zeigeSQLHinweis() {
+      alert(
+`SQL für Supabase (einmal ausführen):\n\nalter table payments add column if not exists offer_valid_until date;\n\nOptional könnt ihr danach Einträge mit transaction_type = 'angebot' anlegen. Dann zeigt der neue Tab die Gültigkeit direkt an.`
+      );
+    }
+
+    
+    async function checkSession() {
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          document.getElementById('loginGate').classList.add('hidden');
+          document.getElementById('appContent').style.display = 'block';
+          loadData();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function prüfeOfferFeld() {
+      return false;
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        document.getElementById('loginError').textContent = error.message;
+        return;
+      }
+      document.getElementById('loginGate').classList.add('hidden');
+      document.getElementById('appContent').style.display = 'block';
+      loadData();
+    }
+
+    async function handleLogout() {
+      await sb.auth.signOut();
+      document.getElementById('loginGate').classList.remove('hidden');
+      document.getElementById('appContent').style.display = 'none';
+    }
+
+document.addEventListener('DOMContentLoaded', () => {
+  restoreArchiveTypeFilter();
+  const tf = document.getElementById('typeFilter');
+  if (tf) tf.addEventListener('change', applyArchiveFilter);
+  if (tf) tf.addEventListener('input', applyArchiveFilter);
+  const filterButtons = document.querySelectorAll('#archiveTypeFilterBar button');
+  filterButtons.forEach(btn => btn.addEventListener('click', () => { setTimeout(() => renderTable(), 0); }));
+  const searchEl = document.getElementById('searchCustomer');
+  const sortEl = document.getElementById('angeboteSort');
+  const openSortEl = document.getElementById('openSort');
+  if (searchEl) searchEl.addEventListener('input', (e) => { currentCustomerSearch = String(e.target.value || '').toLowerCase().trim(); renderTable(); });
+  if (sortEl) sortEl.addEventListener('change', (e) => { currentAngeboteSort = String(e.target.value || 'validity_asc'); renderTable(); });
+  if (openSortEl) openSortEl.addEventListener('change', (e) => { currentOpenSort = String(e.target.value || 'date_desc'); renderTable(); });
+  setTimeout(() => { if (typeof renderTable === 'function') renderTable(); }, 0);
+  if (typeof checkSession === 'function') checkSession();
+});
   </script>
 </body>
 </html>
