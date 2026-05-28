@@ -1221,7 +1221,7 @@ function renderTable() {
   if (!tbody) return;
   buildTableHead();
   tbody.innerHTML = '';
-  let sumOffen = 0, offeneABSumme = 0, offeneRechnungSumme = 0, countAnsicht = 0, angeboteOffen = 0, angeboteBald = 0, angeboteAbgelaufen = 0, archivEinnahmen = 0, archivAusgaben = 0, stornoGebuehren = 0, stornoRueckzahlungen = 0;
+  let sumOffen = 0, offeneABSumme = 0, offeneRechnungSumme = 0, erwarteterUmsatz = 0, countAnsicht = 0, angeboteOffen = 0, angeboteBald = 0, angeboteAbgelaufen = 0, archivEinnahmen = 0, archivAusgaben = 0, stornoGebuehren = 0, stornoRueckzahlungen = 0;
   const baseRows = Array.isArray(allPayments) ? allPayments : [];
   
   // Deduplicate exact invoice numbers for 'rechnung' to avoid showing duplicate rows from DB anomalies
@@ -1416,8 +1416,17 @@ function renderTable() {
     countAnsicht++;
     if (currentTab === 'offen' && cashflowDirection !== 'out' && offenGesamt > 0) {
       sumOffen += offenGesamt;
-      if (transactionType === 'auftragsbestaetigung' || transactionType === 'auftragsbestätigung') offeneABSumme += offenGesamt;
-      if (transactionType === 'rechnung') offeneRechnungSumme += offenGesamt;
+      if (transactionType === 'auftragsbestaetigung' || transactionType === 'auftragsbestätigung') {
+        offeneABSumme += Math.max(0, depositAmount - depositPaid);
+        erwarteterUmsatz += Math.max(0, total - depositPaid);
+      }
+      if (transactionType === 'rechnung') {
+        offeneRechnungSumme += Math.max(0, total - depositPaid);
+        erwarteterUmsatz += Math.max(0, total - depositPaid);
+      }
+      if (transactionType === 'buchung') {
+        erwarteterUmsatz += Math.max(0, total - bezahltGesamt);
+      }
     }
     if (currentTab === 'archiv') {
       const isStorno = (status === 'storniert' || status === 'neutralisiert');
@@ -1524,7 +1533,7 @@ function renderTable() {
   if (countAnsicht === 0) { const colspan = currentTab === 'angebote' ? 8 : 11; tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:3rem; color:#6b7280; font-style:italic;">Keine Einträge in dieser Ansicht vorhanden.</td></tr>`; }
 
   if (currentTab === 'offen') { 
-    document.getElementById('summaryText').innerHTML = `Offene Posten gesamt<br><span style="font-size:0.95rem; color:#475569; font-weight:600;">ABs offen: ${formatCurrency(offeneABSumme)} &nbsp;|&nbsp; Rechnungen offen: ${formatCurrency(offeneRechnungSumme)}</span>`; 
+    document.getElementById('summaryText').innerHTML = `Offene Posten gesamt<br><span style="font-size:0.95rem; color:#475569; font-weight:600;">ABs offen (nur Anzahlung offen): ${formatCurrency(offeneABSumme)} &nbsp;|&nbsp; Rechnungen offen (Rechnungsbetrag abzügl. Anzahlung): ${formatCurrency(offeneRechnungSumme)}<br>Erwarteter Umsatz bei Abschluss aller Vorgänge: ${formatCurrency(erwarteterUmsatz)}</span>`; 
     document.getElementById('totalOpenAmount').textContent = formatCurrency(sumOffen); 
     document.getElementById('totalOpenAmount').style.color = '#dc2626'; 
     document.getElementById('summaryCard').style.display = 'flex'; 
